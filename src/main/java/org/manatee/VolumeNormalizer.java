@@ -6,8 +6,8 @@ import be.tarsos.dsp.AudioProcessor;
 /**
  * Created by HyunJun on 2016-04-14.
  */
-public class VolumeDetector implements AudioProcessor {
-    public VolumeDetector(){
+public class VolumeNormalizer implements AudioProcessor {
+    public VolumeNormalizer(){
 
     }
 

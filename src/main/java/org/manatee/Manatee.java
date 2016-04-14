@@ -20,7 +20,13 @@ public class Manatee implements NodeFactoryListener {
     NodeFactory factory;
 
     public Manatee() {
+
         factory = new NodeFactory(5000, 1);
+
+        float[] pcmData = NodeFactory.convertFileToPcm(new File("./data/hello_long_converted.wav"));
+
+        factory.insert(pcmData, 44100, 1);
+
     }
 
     public void onNodeGenerated(Node node) {
@@ -33,14 +39,15 @@ public class Manatee implements NodeFactoryListener {
 
     public static void main(String[] args) {
 
-        float[] pcmData = NodeFactory.convertFileToPcm(new File("./data/hello_long_converted.wav"));
-        pcmData = zeroAlign(pcmData, 44100);
+        print("Manatee in Development");
 
-        try {
+        Manatee manatee = new Manatee();
+
+        /*try {
             AudioDispatcher dispatcher = AudioDispatcherFactory.fromFloatArray(pcmData, 44100, 5000, 1);
             AudioPlayer player = new AudioPlayer(dispatcher.getFormat());
 
-            VolumeDetector vd = new VolumeDetector();
+            VolumeNormalizer vd = new VolumeNormalizer();
             BandPass bp = new BandPass(4000, 3500, dispatcher.getFormat().getSampleRate());
 
             dispatcher.addAudioProcessor(vd);
@@ -51,48 +58,9 @@ public class Manatee implements NodeFactoryListener {
 
         } catch (LineUnavailableException | UnsupportedAudioFileException e) {
             e.printStackTrace();
-        }
+        }*/
 
-        print("hello, world!");
+
     }
 
-    private static float[] zeroAlign(float[] pcmData, int sampleRate) {
-
-        // 변수는 두 개. threshold랑, min threshold samples
-        final float THRESHOLD = 0.01f;
-        final int MIN_THRESHOLD_SAMPLES = sampleRate / 50;
-
-        int validStartIndex = 0;
-        int validEndIndex = 0;
-        int validCount = 0;
-
-        // 왼쪽
-        for (int i = 0; i < pcmData.length; i++) {
-            if (pcmData[i] > THRESHOLD) {
-                if (validCount < 1)
-                    validStartIndex = i;
-                validCount++;
-            } else {
-                validCount = 0;
-            }
-            if (validCount > MIN_THRESHOLD_SAMPLES)
-                break;
-        }
-
-        // 오른쪽
-        validCount = 0;
-        for (int i = pcmData.length - 1; i > 1; i--) {
-            if (pcmData[i] > THRESHOLD) {
-                if (validCount < 1)
-                    validEndIndex = i;
-                validCount++;
-            } else {
-                validCount = 0;
-            }
-            if (validCount > MIN_THRESHOLD_SAMPLES)
-                break;
-        }
-
-        return Arrays.copyOfRange(pcmData, validEndIndex, validStartIndex);
-    }
 }

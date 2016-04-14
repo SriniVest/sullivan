@@ -14,7 +14,6 @@ import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
-import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -25,8 +24,8 @@ import java.util.*;
  */
 public class NodeFactory implements AudioProcessor {
 
-    protected int audioBufferSize = 10000;
-    protected int bufferOverlap = 0;
+    protected int audioBufferSize = 5000;
+    protected int bufferOverlap = 1;
 
     // 이벤트 리스너
     private List<NodeFactoryListener> eventListeners;
@@ -37,6 +36,7 @@ public class NodeFactory implements AudioProcessor {
 
     // 프로세서
     protected AudioDispatcher dispatcher;
+    protected VolumeNormalizer normalizer;
     protected MFCC mfccProcessor;
     protected BandPass bandpassFilter;
     protected AudioPlayer player;
@@ -84,26 +84,27 @@ public class NodeFactory implements AudioProcessor {
 
         // 음성 데이터를 전처리한다.
         float[] alignedPcmData = zeroAlign(componentInProcess.pcmData);
-        float[] normalizedPcmData = normalizeVolume(alignedPcmData);
 
-        float pcmDuration = (float) normalizedPcmData.length / componentInProcess.sampleRate;
+        float pcmDuration = (float) alignedPcmData.length / componentInProcess.sampleRate;
 
         // 프로세서를 초기화한다.
         dispatcher = null;
-        bandpassFilter = new BandPass(5000, 5000, componentInProcess.sampleRate);
-        mfccProcessor = new MFCC(componentInProcess.sampleRate / 10, componentInProcess.sampleRate, 12, 30, 133.3334f, componentInProcess.sampleRate / 2f);
+        bandpassFilter = new BandPass(4000, 3500, componentInProcess.sampleRate);
+        mfccProcessor = new MFCC(audioBufferSize, componentInProcess.sampleRate, 12, 30, 133.3334f, componentInProcess.sampleRate / 2f);
+        normalizer = new VolumeNormalizer();
 
         mfccMatrix = new float[(int)(12 * 10 * Math.ceil(pcmDuration))]; // TODO: 플레이 시간 * 초당 mfcc샘플 수 * 길이로 바꾸기
         mfccMatrixIndex = 0;
 
         try {
-            dispatcher = AudioDispatcherFactory.fromFloatArray(normalizedPcmData, componentInProcess.sampleRate, audioBufferSize, bufferOverlap);
+            dispatcher = AudioDispatcherFactory.fromFloatArray(alignedPcmData, componentInProcess.sampleRate, audioBufferSize, bufferOverlap);
             player = new AudioPlayer(dispatcher.getFormat());
         } catch (UnsupportedAudioFileException | LineUnavailableException e) {
             e.printStackTrace();
         }
 
         // 음성 데이터를 Dispatcher에 밀어넣는다.
+        dispatcher.addAudioProcessor(normalizer);
         dispatcher.addAudioProcessor(bandpassFilter);
         dispatcher.addAudioProcessor(mfccProcessor);
         dispatcher.addAudioProcessor(player);
@@ -201,53 +202,6 @@ public class NodeFactory implements AudioProcessor {
         return Arrays.copyOfRange(pcmData, validEndIndex, validStartIndex);
     }
 
-
-    /**
-     * 볼륨 일반화한다.
-     *
-     * @param pcmData
-     * @return
-     */
-    private float[] normalizeVolume(float[] pcmData) {
-
-        double volume = getRmsVolume(pcmData);
-
-        for (int i = 0; i < pcmData.length; i++) {
-            pcmData[i] = pcmData[i] * (float) (0.5d / volume);
-        }
-
-        return pcmData;
-    }
-
-    /**
-     * PCM 데이터의 RMS(Root Mean Square) 볼륨을 구한다.
-     *
-     * @param pcmData
-     * @return
-     */
-    public double getRmsVolume(float[] pcmData) {
-        double sum = 0d;
-
-        if (pcmData.length == 0)
-            return sum;
-
-        for (int i = 0; i < pcmData.length; i++) {
-            sum += pcmData[i];
-        }
-
-        double average = sum / pcmData.length;
-        double sumMeanSquare = 0d;
-
-        for (int i = 0; i < pcmData.length; i++) {
-            sumMeanSquare += Math.pow(pcmData[i] - average, 2d);
-        }
-        double averageMeanSquare = sumMeanSquare / pcmData.length;
-        double rootMeanSquare = Math.sqrt(averageMeanSquare);
-
-        return rootMeanSquare;
-    }
-
-
     /**
      * Node Factory에 리스너를 추가한다.
      *
@@ -283,19 +237,15 @@ public class NodeFactory implements AudioProcessor {
             }
             out.flush();
 
-        }catch (UnsupportedAudioFileException | IOException e) {
+        } catch (UnsupportedAudioFileException | IOException e) {
             e.printStackTrace();
         }
-
-
         byte[] audioBytes = out.toByteArray();
         byte[] audioBytesPadded = new byte[audioBytes.length * 4];
 
         System.arraycopy(audioBytes,0,audioBytesPadded,0,audioBytes.length);
 
         float[] audioFloats = new float[audioBytes.length];
-
-        System.out.println(audioBytes.length);
 
         converter.toFloatArray(audioBytesPadded, 0, audioFloats, 0, audioFloats.length - 1);
 
