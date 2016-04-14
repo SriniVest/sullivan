@@ -21,16 +21,19 @@ public class Manatee implements NodeFactoryListener {
 
     public Manatee() {
 
-        factory = new NodeFactory(5000, 1);
+        factory = new NodeFactory(3000, 1);
+        factory.addEventListener(this);
 
-        float[] pcmData = NodeFactory.convertFileToPcm(new File("./data/hello_long_converted.wav"));
+        float[] sample1 = NodeFactory.convertFileToPcm(new File("./data/hello1.wav"));
+        float[] sample2 = NodeFactory.convertFileToPcm(new File("./data/hello2.wav"));
 
-        factory.insert(pcmData, 44100, 1);
+        factory.insert(sample1, 44100, 1);
+        factory.insert(sample2, 44100, 1);
 
     }
 
     public void onNodeGenerated(Node node) {
-
+        print("Node generated!");
     }
 
     public static void print(Object message) {

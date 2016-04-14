@@ -42,7 +42,7 @@ public class NodeFactory implements AudioProcessor {
     protected AudioPlayer player;
 
     // 프로세싱 결과물
-    private float[] mfccMatrix;
+    private List<float[]> mfccMatrix;
     private int mfccMatrixIndex;
 
     public NodeFactory(int audioBufferSize, int bufferOverlap) {
@@ -93,7 +93,7 @@ public class NodeFactory implements AudioProcessor {
         mfccProcessor = new MFCC(audioBufferSize, componentInProcess.sampleRate, 12, 30, 133.3334f, componentInProcess.sampleRate / 2f);
         normalizer = new VolumeNormalizer();
 
-        mfccMatrix = new float[(int)(12 * 10 * Math.ceil(pcmDuration))]; // TODO: 플레이 시간 * 초당 mfcc샘플 수 * 길이로 바꾸기
+        mfccMatrix = new ArrayList<float[]>();
         mfccMatrixIndex = 0;
 
         try {
@@ -103,7 +103,7 @@ public class NodeFactory implements AudioProcessor {
             e.printStackTrace();
         }
 
-        // 음성 데이터를 Dispatcher에 밀어넣는다.
+        // 필터링
         dispatcher.addAudioProcessor(normalizer);
         dispatcher.addAudioProcessor(bandpassFilter);
         dispatcher.addAudioProcessor(mfccProcessor);
@@ -124,8 +124,14 @@ public class NodeFactory implements AudioProcessor {
 
         float[] mfcc = mfccProcessor.getMFCC();
 
+        String output = "";
+        for (int i = 0; i < mfcc.length; i++) {
+            output += mfcc[i] + ", ";
+        }
+        System.out.println(output);
+
         // MFCC 행렬에 추가한다
-        System.arraycopy(mfcc, 0, mfccMatrix, mfccMatrixIndex, mfcc.length);
+        mfccMatrix.add(mfcc);
         mfccMatrixIndex += mfcc.length;
 
         return true;
@@ -221,6 +227,11 @@ public class NodeFactory implements AudioProcessor {
     }
 
 
+    /**
+     * 일반 .wav 파일 데이터를 float PCM 배열로 변환한다.
+     * @param source
+     * @return
+     */
     public static float[] convertFileToPcm(File source) {
 
         TarsosDSPAudioFloatConverter converter = null;
