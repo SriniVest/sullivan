@@ -42,7 +42,7 @@ public class NodeComparator {
             }
         }
 
-        return dMap[nl][ml];
+        return dMap[nl - 1][ml - 1];
     }
 
     private static double getLocalDtwDistance(float[] a1, float[] a2) {
@@ -70,7 +70,7 @@ public class NodeComparator {
             }
         }
 
-        return dMap[nl][ml];
+        return dMap[nl - 1][ml - 1];
     }
 
     private static double getLocalEuclideanDistance(float[] a1, float[] a2) {
