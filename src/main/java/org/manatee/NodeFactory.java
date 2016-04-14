@@ -4,12 +4,20 @@ import be.tarsos.dsp.AudioDispatcher;
 import be.tarsos.dsp.AudioEvent;
 import be.tarsos.dsp.AudioProcessor;
 import be.tarsos.dsp.filters.BandPass;
+import be.tarsos.dsp.io.TarsosDSPAudioFloatConverter;
 import be.tarsos.dsp.io.jvm.AudioDispatcherFactory;
 import be.tarsos.dsp.io.jvm.AudioPlayer;
+import be.tarsos.dsp.io.jvm.JVMAudioInputStream;
 import be.tarsos.dsp.mfcc.MFCC;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -148,7 +156,7 @@ public class NodeFactory implements AudioProcessor {
     }
 
     /**
-     * 0 정렬. 발음이 시작하기 전 소리를 제거한다. (time-domain)
+     * 발음이 시작하기 전, 발음이 끝나고 난 후 소리 공백을 제거한다. (time-domain)
      *
      * @param pcmData
      * @return
@@ -156,8 +164,8 @@ public class NodeFactory implements AudioProcessor {
     private float[] zeroAlign(float[] pcmData) {
 
         // 변수는 두 개. threshold랑, min threshold samples
-        final float THRESHOLD = 0.05f;
-        final int MIN_THRESHOLD_SAMPLES = componentInProcess.sampleRate / 10;
+        final float THRESHOLD = 0.01f;
+        final int MIN_THRESHOLD_SAMPLES = componentInProcess.sampleRate / 50;
 
         int validStartIndex = 0;
         int validEndIndex = 0;
@@ -178,7 +186,7 @@ public class NodeFactory implements AudioProcessor {
 
         // 오른쪽
         validCount = 0;
-        for (int i = pcmData.length - 1; i > 0; i--) {
+        for (int i = pcmData.length - 1; i > 1; i--) {
             if (pcmData[i] > THRESHOLD) {
                 if (validCount < 1)
                     validEndIndex = i;
@@ -189,7 +197,8 @@ public class NodeFactory implements AudioProcessor {
             if (validCount > MIN_THRESHOLD_SAMPLES)
                 break;
         }
-        return Arrays.copyOfRange(pcmData, validStartIndex, validEndIndex);
+
+        return Arrays.copyOfRange(pcmData, validEndIndex, validStartIndex);
     }
 
 
@@ -255,6 +264,42 @@ public class NodeFactory implements AudioProcessor {
      */
     public void removeEventListener(NodeFactoryListener listener) {
         this.eventListeners.remove(listener);
+    }
+
+
+    public static float[] convertFileToPcm(File source) {
+
+        TarsosDSPAudioFloatConverter converter = null;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        try {
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(source);
+            converter = TarsosDSPAudioFloatConverter.getConverter(JVMAudioInputStream.toTarsosDSPFormat(audioInputStream.getFormat()));
+
+            int read;
+            byte[] buff = new byte[1024 * 1024];
+            while ((read = audioInputStream.read(buff)) > 0) {
+                out.write(buff, 0, read);
+            }
+            out.flush();
+
+        }catch (UnsupportedAudioFileException | IOException e) {
+            e.printStackTrace();
+        }
+
+
+        byte[] audioBytes = out.toByteArray();
+        byte[] audioBytesPadded = new byte[audioBytes.length * 4];
+
+        System.arraycopy(audioBytes,0,audioBytesPadded,0,audioBytes.length);
+
+        float[] audioFloats = new float[audioBytes.length];
+
+        System.out.println(audioBytes.length);
+
+        converter.toFloatArray(audioBytesPadded, 0, audioFloats, 0, audioFloats.length - 1);
+
+        return audioFloats;
     }
 
     /**
