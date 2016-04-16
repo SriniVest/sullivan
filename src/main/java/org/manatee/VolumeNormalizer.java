@@ -20,7 +20,7 @@ public class VolumeNormalizer implements AudioProcessor {
         float[] newBuffer = new float[buffer.length];
 
         for (int i = 0; i < newBuffer.length; i++) {
-            newBuffer[i] = buffer[i] * (float) (0.5d / volume);
+            newBuffer[i] = buffer[i] * (float) (1d / volume);
         }
 
         audioEvent.setFloatBuffer(newBuffer);
@@ -49,8 +49,6 @@ public class VolumeNormalizer implements AudioProcessor {
 
         return rootMeanSquare;
     }
-
-
 
     @Override
     public void processingFinished() {

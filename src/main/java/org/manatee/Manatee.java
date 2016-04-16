@@ -28,38 +28,50 @@ public class Manatee implements NodeFactoryListener {
 
         nodes = new ArrayList<Node>();
 
-        factory = new NodeFactory(1000, 1);
+        factory = new NodeFactory(2000, 100);
         factory.addEventListener(this);
 
-        float[] sample1 = NodeFactory.convertFileToPcm(new File("./data/hello1.wav"));
-        float[] sample2 = NodeFactory.convertFileToPcm(new File("./data/hello2.wav"));
-        float[] sample3 = NodeFactory.convertFileToPcm(new File("./data/greet1.wav"));
-        float[] sample4 = NodeFactory.convertFileToPcm(new File("./data/greet2.wav"));
-
         finalPid = 4;
+        factory.playSound = true;
+        factory.insert(NodeFactory.convertFileToPcm(new File("./data/hello1.wav")), 44100, 1);
+        factory.insert(NodeFactory.convertFileToPcm(new File("./data/hello2.wav")), 44100, 2);
+        factory.insert(NodeFactory.convertFileToPcm(new File("./data/hello3.wav")), 44100, 3);
 
-        factory.insert(sample1, 44100, 1);
-        factory.insert(sample2, 44100, 2);
-        factory.insert(sample3, 44100, 3);
-        factory.insert(sample4, 44100, 4);
+        factory.insert(NodeFactory.convertFileToPcm(new File("./data/hello4.wav")), 44100, 4);
     }
 
     private void onAllNodeGenerated() {
 
         print("All nodes are generated");
+        double c = NodeComparator.getDistance(nodes.get(1), nodes.get(2));
 
-        double d1 = NodeComparator.getDistance(nodes.get(0), nodes.get(1));
+        print(NodeComparator.getDistance(nodes.get(0), nodes.get(1)) - c);
+        print(NodeComparator.getDistance(nodes.get(0), nodes.get(2))- c);
+        print(NodeComparator.getDistance(nodes.get(1), nodes.get(2))- c);
+        print(NodeComparator.getDistance(nodes.get(0), nodes.get(3))- c);
+        print(NodeComparator.getDistance(nodes.get(1), nodes.get(3))- c);
 
-        double d2 = NodeComparator.getDistance(nodes.get(0), nodes.get(2));
 
-        double d3 = NodeComparator.getDistance(nodes.get(1), nodes.get(2));
+/*
+        double c = NodeComparator.getDistance(nodes.get(0), nodes.get(1));
 
-        double d4 = NodeComparator.getDistance(nodes.get(3), nodes.get(2));
-
-        print(d1);
-        print(d2);
-        print(d3);
-        print(d4);
+        print(": Hellos");
+        print(NodeComparator.getDistance(nodes.get(0), nodes.get(1)) - c);
+        print(NodeComparator.getDistance(nodes.get(0), nodes.get(4)) - c);
+        print(NodeComparator.getDistance(nodes.get(1), nodes.get(4)) - c);
+        print("");
+        print(": Hello vs Greets(2)");
+        print(NodeComparator.getDistance(nodes.get(0), nodes.get(2)) - c);
+        print(NodeComparator.getDistance(nodes.get(1), nodes.get(2)) - c);
+        print(NodeComparator.getDistance(nodes.get(4), nodes.get(2)) - c);
+        print("");
+        print(": Hello vs Greets(3)");
+        print(NodeComparator.getDistance(nodes.get(0), nodes.get(3)) - c);
+        print(NodeComparator.getDistance(nodes.get(1), nodes.get(3)) - c);
+        print(NodeComparator.getDistance(nodes.get(4), nodes.get(3)) - c);
+        print("");
+        print(": Greets");
+        print(NodeComparator.getDistance(nodes.get(3), nodes.get(2)) - c);*/
     }
 
 

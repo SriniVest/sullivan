@@ -1,8 +1,6 @@
 package org.manatee;
 
-import be.tarsos.dsp.AudioDispatcher;
-import be.tarsos.dsp.AudioEvent;
-import be.tarsos.dsp.AudioProcessor;
+import be.tarsos.dsp.*;
 import be.tarsos.dsp.filters.BandPass;
 import be.tarsos.dsp.io.TarsosDSPAudioFloatConverter;
 import be.tarsos.dsp.io.jvm.AudioDispatcherFactory;
@@ -27,6 +25,8 @@ public class NodeFactory implements AudioProcessor {
     protected int audioBufferSize = 5000;
     protected int bufferOverlap = 1;
 
+    public boolean playSound = false;
+
     // 이벤트 리스너
     private List<NodeFactoryListener> eventListeners;
 
@@ -37,6 +37,7 @@ public class NodeFactory implements AudioProcessor {
     // 프로세서
     protected AudioDispatcher dispatcher;
     protected VolumeNormalizer normalizer;
+    protected HfCompensator hfCompensator;
     protected MFCC mfccProcessor;
     protected BandPass bandpassFilter;
     protected AudioPlayer player;
@@ -84,30 +85,35 @@ public class NodeFactory implements AudioProcessor {
 
         // 음성 데이터를 전처리한다.
         float[] alignedPcmData = zeroAlign(componentInProcess.pcmData);
+        float[] normalziedPcmData = alignedPcmData;//normalizeVolume(alignedPcmData);
 
-        float pcmDuration = (float) alignedPcmData.length / componentInProcess.sampleRate;
+        float pcmDuration = (float) normalziedPcmData.length / componentInProcess.sampleRate;
 
         // 프로세서를 초기화한다.
         dispatcher = null;
-        bandpassFilter = new BandPass(4000, 3500, componentInProcess.sampleRate);
+        bandpassFilter = new BandPass((300 + 3400) / 2, (300 + 3400) / 2 - 300, componentInProcess.sampleRate);
         mfccProcessor = new MFCC(audioBufferSize, componentInProcess.sampleRate, 12, 30, 133.3334f, componentInProcess.sampleRate / 2f);
         normalizer = new VolumeNormalizer();
+        hfCompensator = new HfCompensator();
+
 
         mfccMatrix = new ArrayList<float[]>();
         mfccMatrixIndex = 0;
 
         try {
-            dispatcher = AudioDispatcherFactory.fromFloatArray(alignedPcmData, componentInProcess.sampleRate, audioBufferSize, bufferOverlap);
+            dispatcher = AudioDispatcherFactory.fromFloatArray(normalziedPcmData, componentInProcess.sampleRate, audioBufferSize, bufferOverlap);
             player = new AudioPlayer(dispatcher.getFormat());
         } catch (UnsupportedAudioFileException | LineUnavailableException e) {
             e.printStackTrace();
         }
 
         // 필터링
+
         dispatcher.addAudioProcessor(normalizer);
+        dispatcher.addAudioProcessor(hfCompensator);
         dispatcher.addAudioProcessor(bandpassFilter);
         dispatcher.addAudioProcessor(mfccProcessor);
-        dispatcher.addAudioProcessor(player);
+        if(playSound)dispatcher.addAudioProcessor(player);
         dispatcher.addAudioProcessor(this);
 
         dispatcher.run();
@@ -142,6 +148,9 @@ public class NodeFactory implements AudioProcessor {
      */
     private void postprocess() {
 
+        if (!dispatcher.getFormat().isBigEndian())
+            Collections.reverse(mfccMatrix);
+
         // 새 노드를 생성한다.
         Node node = new Node(mfccMatrix, componentInProcess.pid);
         node.secondsProcessed = dispatcher.secondsProcessed();
@@ -171,8 +180,8 @@ public class NodeFactory implements AudioProcessor {
     private float[] zeroAlign(float[] pcmData) {
 
         // 변수는 두 개. threshold랑, min threshold samples
-        final float THRESHOLD = 0.01f;
-        final int MIN_THRESHOLD_SAMPLES = componentInProcess.sampleRate / 50;
+        final float THRESHOLD = 0.05f;
+        final int MIN_THRESHOLD_SAMPLES = componentInProcess.sampleRate / 20;
 
         int validStartIndex = 0;
         int validEndIndex = 0;
@@ -206,6 +215,41 @@ public class NodeFactory implements AudioProcessor {
         }
 
         return Arrays.copyOfRange(pcmData, validEndIndex, validStartIndex);
+    }
+
+    private float[] normalizeVolume(float[] pcmData){
+
+        double volume = getRmsVolume(pcmData);
+
+        float[] newBuffer = new float[pcmData.length];
+
+        for (int i = 0; i < newBuffer.length; i++) {
+            newBuffer[i] = pcmData[i] * (float) (0.2f / volume);
+        }
+
+        return newBuffer;
+    }
+
+    private double getRmsVolume(float[] pcmData) {
+        double sum = 0d;
+
+        if (pcmData.length == 0)
+            return sum;
+
+        for (int i = 0; i < pcmData.length; i++) {
+            sum += pcmData[i];
+        }
+
+        double average = sum / pcmData.length;
+        double sumMeanSquare = 0d;
+
+        for (int i=0; i < pcmData.length; i++) {
+            sumMeanSquare += Math.pow(pcmData[i] - average, 2d);
+        }
+        double averageMeanSquare = sumMeanSquare / pcmData.length;
+        double rootMeanSquare = Math.sqrt(averageMeanSquare);
+
+        return rootMeanSquare;
     }
 
     /**
