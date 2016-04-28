@@ -1,0 +1,15 @@
+<word version="2.0" date="20160314">
+	<name>hello</name>
+	<model>
+		<data uid="1" source="hello0.wav" name="HyunJun Kim" sex="male" age=21 date="20160314">
+			<description name="Boy">qegqeg qeg</description>
+		</data>
+		<data uid="2" source="hello2.wav"/>
+		<data uid="3" source="hello1.wav"/>
+	</model>
+	<success>
+		<data uid="4">hello1.wav</data>
+	</success>
+	<failure>
+	</failure>
+</word>

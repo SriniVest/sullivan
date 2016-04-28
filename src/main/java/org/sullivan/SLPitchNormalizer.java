@@ -1,0 +1,13 @@
+package org.sullivan;
+
+/**
+ * 이 모듈의 목표는 화자를 일반화하는 것으로
+ * 음정을 중간 수치 F로 일반화한다.
+ * 초보적이지만 어느 정도 성능을 낸다.
+ */
+public class SLPitchNormalizer {
+
+    public static void normalize(SLPcmData pcmData) {
+        /** TODO: Pitch normalizeation 구현 **/
+    }
+}
