@@ -45,16 +45,21 @@ public class SLEvaluationReport {
 
         double cost = characteristics.model.getCentroid().getDistance(attempt); // distance. 이제 이걸 정규분포화해야하는데..! (TODO)
         report += "pronunciation score: " + cost + " (" + Math.round(SLCluster.DISTANCE_THRESHOLD * 100 / cost) + "%)\n";
+        report += "*lower the score, the better.\n";
         report += "classification: " + (classifiedAsFailure ? "failed" : "succeed") + "\n";
 
         double[] costGraph = characteristics.model.getCentroid().getCostPath(attempt);
-        report += "accuracy graph: " + Math.round(costGraph[0] * 100);
+        report += "accuracy graph: (" + Math.round(costGraph[0] * 100);
         for (int i = 1; i < costGraph.length; i++)
             report += ", " + Math.round(costGraph[i] * 100);
         report += ")\n";
 
         report += "pronunciation characteristics: \n";
         int rank = 1;
+
+        for (SLDescription description :  characteristics.model.getDescriptions()) {
+            report += "    (" + (rank++) + ") " + description.description + "\n";
+        }
         for (SLCluster cluster : characteristics.success) {
             for (SLDescription description : cluster.getDescriptions()) {
                 report += "    (" + (rank++) + ") " + description.description + "\n";

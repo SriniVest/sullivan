@@ -164,7 +164,7 @@ public class SLWordLoader implements SLNodeGeneratorListener {
                     continue;
 
                 NamedNodeMap descriptionAttributes = descriptionNode.getAttributes();
-                String descriptionText = descriptionNode.getNodeValue();
+                String descriptionText = descriptionNode.getTextContent();
                 String name = descriptionAttributes.getNamedItem("name").getNodeValue();
 
                 SLDescription description = new SLDescription(descriptionText, new SLDescription.SLDescriptionInfo(name));

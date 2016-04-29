@@ -135,7 +135,8 @@ public class SLDistanceMap<T extends SLMeasurable<T>> {
         }
         int elementNumber = (int) Math.max(Math.floor(closeElements.size() * ratio), Math.min(2, closeElements.size()));
 
-        return closeElements.subList(0, elementNumber - 1);
+
+        return closeElements.subList(0, elementNumber);
     }
 
     /**
