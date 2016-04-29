@@ -44,6 +44,8 @@ public class SLNode implements SLMeasurable<SLNode> {
      */
     public SLCluster asCluster() {
         SLCluster cluster = new SLCluster(new SLClusterGroup(new SLDistanceMap<SLNode>()));
+        cluster.addNode(this);
+
         return cluster;
     }
 

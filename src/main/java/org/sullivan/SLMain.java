@@ -56,6 +56,9 @@ public class SLMain implements SLCliListener, SLWordLoaderListener, SLNodeGenera
 
         nodeGenerator = new SLNodeGenerator(5000, 1);
 
+        wordLoader.addEventListener(this);
+        nodeGenerator.addEventListener(this);
+
         cli.addEventListener(this);
         cli.initialize();
     }
@@ -86,7 +89,7 @@ public class SLMain implements SLCliListener, SLWordLoaderListener, SLNodeGenera
                 }
                 break;
             case "load":
-                wordLoader.load(new File(arguments.get(0)));
+                wordLoader.load(new File("./data/" + arguments.get(0).trim() + ".word"));
                 break;
             case "save":
                 wordName = arguments.get(0).trim();
@@ -99,13 +102,19 @@ public class SLMain implements SLCliListener, SLWordLoaderListener, SLNodeGenera
                 wordName = arguments.get(0).trim();
                 if (!words.containsKey(wordName))
                     cli.error("No such word \'" + wordName + "\'.");
-                requestWord = words.get(wordName);
-                generateNode(new File(arguments.get(1).trim()));
+                else {
+                    requestWord = words.get(wordName);
+                    generateNode(new File(arguments.get(1).trim()));
+                }
                 break;
             case "status":
                 wordName = arguments.get(0).trim();
-                // 단어의 노드와 클러스터의 개수 등등을 보여줌
-                cli.notify(words.get(wordName).getStatus());
+                if (!words.containsKey(wordName))
+                    cli.error("No such word \'" + wordName + "\'.");
+                else {
+                    // 단어의 노드와 클러스터의 개수 등등을 보여줌
+                    cli.notify(words.get(wordName).getStatus());
+                }
                 break;
             case "resolve":
                 if (SLDescriptionRequest.numberOfRequests < 1) {

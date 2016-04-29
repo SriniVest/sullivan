@@ -15,6 +15,19 @@ public class SLClusterAnalyzer {
         this.context = context;
     }
 
+    // 클러스터를 초기화한다.
+    public void initialize() {
+
+        // 모든 원소 삭제
+        context.clusters = new SLDistanceMap<>();
+
+        for (SLNode node : context.nodes.getList()) {
+            context.clusters.add(node.asCluster(context));
+        }
+
+        build();
+    }
+
     /**
      * 클러스터 전분석을 수행한다.
      *

@@ -52,8 +52,7 @@ public class SLSilenceTruncator {
                 break;
         }
 
-        pcmData.data =  Arrays.copyOfRange(pcmData.data, validEndIndex, validStartIndex);
+        pcmData.data =  Arrays.copyOfRange(pcmData.data, validStartIndex, validEndIndex);
     }
-
 
 }

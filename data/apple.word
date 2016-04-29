@@ -1,0 +1,36 @@
+<word version="2.0" date="20160314">
+	<name>apple</name>
+	<model>
+		<data uid="1" source="apple/a1.wav" name="HyunJun Kim" sex="male" age="21" date="20160314">
+			<description name="HyunJun">남성 발음입니다.</description>
+		</data>
+		<data uid="2" source="apple/a2.wav" name="HyunJun Kim" sex="male" age="21" date="20160314">
+			<description name="HyunJun">20대 발음입니다.</description>
+		</data>
+		<data uid="3" source="apple/a3.wav" name="HyunJun Kim" sex="male" age="21" date="20160314"/>
+		<data uid="4" source="apple/a4.wav" name="HyunJun Kim" sex="male" age="21" date="20160314"/>
+		
+	</model>
+	<success>
+		<data uid="5" source="apple/a5.wav" name="HyunJun Kim" sex="male" age="21" date="20160314">
+			<description name="HyunJun">중저음의 발음입니다.</description>
+		</data>
+	</success>
+	<failure>
+		<data uid="6" source="apple/b1.wav" name="HyunJun Kim" sex="male" age="21" date="20160314">
+			<description name="HyunJun">'과'를 '와'로 발음하였습니다.</description>
+		</data>
+		<data uid="7" source="apple/b2.wav" name="HyunJun Kim" sex="male" age="21" date="20160314"/>
+		<data uid="8" source="apple/b3.wav" name="HyunJun Kim" sex="male" age="21" date="20160314"/>
+		<data uid="9" source="apple/c1.wav" name="HyunJun Kim" sex="male" age="21" date="20160314">
+			<description name="HyunJun">'사'를 '아'로 발음하였습니다.</description>
+		</data>
+		<data uid="10" source="apple/c2.wav" name="HyunJun Kim" sex="male" age="21" date="20160314"/>
+		<data uid="11" source="apple/c3.wav" name="HyunJun Kim" sex="male" age="21" date="20160314"/>
+		<data uid="12" source="apple/d1.wav" name="HyunJun Kim" sex="male" age="21" date="20160314">
+			<description name="HyunJun">센 소리가 없습니다.</description>
+		</data>
+		<data uid="13" source="apple/d2.wav" name="HyunJun Kim" sex="male" age="21" date="20160314"/>
+		<data uid="14" source="apple/d3.wav" name="HyunJun Kim" sex="male" age="21" date="20160314"/>
+	</failure>
+</word>

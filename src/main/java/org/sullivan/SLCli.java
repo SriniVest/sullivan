@@ -123,8 +123,8 @@ public class SLCli {
 
         termiate = false;
 
-        while (scanner.hasNext() && !termiate) {
-            String input = scanner.next().trim();
+        while (scanner.hasNextLine() && !termiate) {
+            String input = scanner.nextLine().trim();
 
             if (input.equals("help")) {
                 help();

@@ -62,6 +62,8 @@ public class SLWordLoader implements SLNodeGeneratorListener {
         nodeGenerator = new SLNodeGenerator(5000, 1);
         builderFactory = DocumentBuilderFactory.newInstance();
 
+        nodeGenerator.addEventListener(this);
+
         listeners = new ArrayList<>();
 
         try {
@@ -73,6 +75,7 @@ public class SLWordLoader implements SLNodeGeneratorListener {
 
     public void load(File wordDataFile) {
         try {
+            generatedNodes = new ArrayList<>();
 
             List<SLNode.SLNodeInfo> wordModelData;
             List<SLNode.SLNodeInfo> wordSuccessData;
@@ -82,9 +85,10 @@ public class SLWordLoader implements SLNodeGeneratorListener {
             document.getDocumentElement().normalize();
 
             // 워드의 메타데이터를 읽어온다.
-            Node word = document.getElementsByTagName("name").item(0);
+            Node word = document.getElementsByTagName("word").item(0);
+            Node nameNode = document.getElementsByTagName("name").item(0);
 
-            wordInfo = new SLWord.SLWordInfo(word.getTextContent());
+            wordInfo = new SLWord.SLWordInfo(nameNode.getTextContent());
             wordInfo.version = word.getAttributes().getNamedItem("version").getNodeValue();
             wordInfo.date = word.getAttributes().getNamedItem("date").getNodeValue();
 
@@ -96,6 +100,9 @@ public class SLWordLoader implements SLNodeGeneratorListener {
             totalGeneratingNodes = wordModelData.size() + wordSuccessData.size() + wordFailureData.size();
 
             // 로드된 정보를 바탕으로 워드 내부의 노드를 생성한다.
+            generateNodes(wordModelData);
+            generateNodes(wordSuccessData);
+            generateNodes(wordFailureData);
 
         } catch (SAXException | IOException e) {
             e.printStackTrace();
@@ -131,7 +138,7 @@ public class SLWordLoader implements SLNodeGeneratorListener {
             NamedNodeMap attributes = dataNode.getAttributes();
 
             // 데이터 음성 소스
-            String source = dataNode.getTextContent().trim();
+            String source = attributes.getNamedItem("source").getNodeValue();
 
             // 노드 메타데이터
             SLNode.SLNodeInfo nodeInfo = new SLNode.SLNodeInfo(source);
@@ -180,7 +187,7 @@ public class SLWordLoader implements SLNodeGeneratorListener {
 
         for (SLNode.SLNodeInfo nodeInfo : nodeInfos) {
 
-            File audioFile = new File(nodeInfo.source);
+            File audioFile = new File("./data/" + nodeInfo.source);
 
             // 파일이 존재하지 않을 경우
             if (!audioFile.exists()) {
@@ -259,9 +266,9 @@ public class SLWordLoader implements SLNodeGeneratorListener {
         }
 
         // 클러스터링한다.
-        word.clusterLayer.model.analyzer.build();
-        word.clusterLayer.success.analyzer.build();
-        word.clusterLayer.failure.analyzer.build();
+        word.clusterLayer.model.analyzer.initialize();
+        word.clusterLayer.success.analyzer.initialize();
+        word.clusterLayer.failure.analyzer.initialize();
 
         // knowledge와 링크시킨다.
        /* allocateKnowledge(word.clusterLayer.model.clusters, "model");
