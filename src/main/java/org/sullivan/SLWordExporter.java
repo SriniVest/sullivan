@@ -56,13 +56,13 @@ public class SLWordExporter {
 
         // name 노드
         Element nameElement = document.createElement("name");
-        nameElement.setNodeValue(word.info.name);
+        nameElement.setNodeValue(word.name);
         wordElement.appendChild(nameElement);
 
         // layer 노드
-        Element modelElement = generateLayerElement("model", word.clusterLayer.model.nodes.getList());
-        Element successElement = generateLayerElement("success", word.clusterLayer.model.nodes.getList());
-        Element failureElement = generateLayerElement("failure", word.clusterLayer.model.nodes.getList());
+        Element modelElement = generateLayerElement("model", word.layer.model.nodes);
+        Element successElement = generateLayerElement("success", word.layer.success.nodes);
+        Element failureElement = generateLayerElement("failure", word.layer.failure.nodes);
 
         wordElement.appendChild(modelElement);
         wordElement.appendChild(successElement);
@@ -72,7 +72,7 @@ public class SLWordExporter {
         try {
             Transformer transformer = transformerFactory.newTransformer();
             DOMSource source = new DOMSource(document);
-            StreamResult result = new StreamResult(new File("./data/" + word.info.name + ".word"));
+            StreamResult result = new StreamResult(new File("./data/" + word.name + ".word"));
 
             transformer.transform(source, result);
         } catch (TransformerException e) {
@@ -95,19 +95,21 @@ public class SLWordExporter {
 
             Element dataElement = document.createElement("data");
 
-            // 노드의 소스가 .wav 면 pronounciation으로 변환 저장한다.
-
-            dataElement.setAttribute("uid", node.info.uid);
-            dataElement.setAttribute("source", node.info.source);
+            dataElement.setAttribute("uid", node.uid);
+            dataElement.setAttribute("source", node.info.source.getPath());
             dataElement.setAttribute("name", node.info.recorder);
-            dataElement.setAttribute("sex", node.info.recorderSex ? "male" : "female");
-            dataElement.setAttribute("age", node.info.recorderAge + "");
+            dataElement.setAttribute("sex", node.info.recorderSex);
+            dataElement.setAttribute("age", node.info.recorderAge);
             dataElement.setAttribute("registeredDate", node.info.recordedDate);
 
             // description
-            for (SLDescription description : node.info.descriptions) {
+            for (SLDescription description : node.descriptions) {
                 Element descriptionElement = document.createElement("description");
-                descriptionElement.setAttribute("name", description.info.raw);
+
+                descriptionElement.setAttribute("prominence", String.valueOf(description.info.prominence));
+                descriptionElement.setAttribute("rate", String.valueOf(description.info.rate));
+                descriptionElement.setAttribute("provider", String.valueOf(description.info.provider));
+                descriptionElement.setAttribute("registeredDate", String.valueOf(description.info.registeredDate));
                 descriptionElement.setNodeValue(description.description);
 
                 dataElement.appendChild(descriptionElement);
@@ -116,6 +118,22 @@ public class SLWordExporter {
 
         }
         return layerElement;
+    }
+
+    /**
+     * 파일의 확장명을 구한다.
+     *
+     * @param file
+     * @return
+     */
+    private String getFileExtension(File file) {
+
+        int i = file.getName().lastIndexOf('.');
+
+        if (i > 0)
+            return file.getName().substring(i + 1).toLowerCase();
+        else
+            return "";
     }
 
 }

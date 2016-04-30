@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * 워드 데이터 파일(*.word)로부터 워드(한 단어에 관한 총괄 데이터)를 생성한다.
  */
-public class SLWordLoader implements SLFeatureExtractorListener {
+public class SLWordLoader {
 
     /**
      * 워드의 세 레이어
@@ -29,10 +29,6 @@ public class SLWordLoader implements SLFeatureExtractorListener {
 
         Layer(String label) {
             this.label = label;
-        }
-
-        public String getLabel() {
-            return this.label;
         }
     }
 
@@ -49,30 +45,6 @@ public class SLWordLoader implements SLFeatureExtractorListener {
      */
     private File targetPath;
 
-    /**
-     * 워드의 메타데이터
-     */
-    private SLWord.SLWordInfo wordInfo;
-
-    /**
-     * 노드 생성기
-     */
-    private SLFeatureExtractor featureExtractor;
-
-    /**
-     * 생성되어야 할 총 노드 수
-     */
-    private int totalGeneratingNodes = 0;
-
-    /**
-     * 현재 생성된 노드 수
-     */
-    private int currentGeneratedNodes = 0;
-
-    /**
-     * 생성된 노드들
-     */
-    private List<SLNode> generatedNodes;
 
     /**
      * 워드 생성 이벤트를 받는 리스너들
@@ -80,9 +52,6 @@ public class SLWordLoader implements SLFeatureExtractorListener {
     private List<SLWordLoaderListener> listeners;
 
     public SLWordLoader() {
-
-        featureExtractor = new SLFeatureExtractor(5000, 1);
-        featureExtractor.addEventListener(this);
 
         builderFactory = DocumentBuilderFactory.newInstance();
 
@@ -97,7 +66,6 @@ public class SLWordLoader implements SLFeatureExtractorListener {
 
     public void load(File wordDataFile) {
         try {
-            generatedNodes = new ArrayList<>();
 
             targetPath = wordDataFile.getAbsoluteFile().getParentFile();
 
@@ -211,6 +179,7 @@ public class SLWordLoader implements SLFeatureExtractorListener {
             Layer layer = Layer.valueOf(layerNode.getNodeName());
             String source = getAttributeValue(attributes, "source");
             String uid = getAttributeValue(attributes, "uid");
+            int iuid = 0;
             String recorder = getAttributeValue(attributes, "recorder");
             String recorderSex = getAttributeValue(attributes, "recorder-sex");
             String recorderAge = getAttributeValue(attributes, "recorder-age");
@@ -218,9 +187,12 @@ public class SLWordLoader implements SLFeatureExtractorListener {
             List<SLDescription> descriptions = new ArrayList<>();
 
             if (source.equals("unknown"))
-                throw new NullPointerException("Source attribute must not be null.");
+                continue;
             if (uid.equals("unknown"))
-                throw new NullPointerException("UID attribute must not be null.");
+                continue;
+            if (!uid.matches("^-?\\d+$"))
+                continue;
+            iuid = Integer.parseInt(uid);
 
             NodeList descriptionNodes = childNode.getChildNodes();
 
@@ -257,7 +229,7 @@ public class SLWordLoader implements SLFeatureExtractorListener {
             }
 
             // 채워 넣는다.
-            SLNodeEntry nodeEntry = new SLNodeEntry(layer, source, uid, descriptions);
+            SLNodeEntry nodeEntry = new SLNodeEntry(source, iuid, descriptions);
             nodeEntry.recorder = recorder;
             nodeEntry.recorderAge = recorderAge;
             nodeEntry.recorderSex = recorderSex;
@@ -289,10 +261,16 @@ public class SLWordLoader implements SLFeatureExtractorListener {
         List<SLNode> successLayerNodes = generateNodes(wordEntry.successLayerNodeEntries);
         List<SLNode> failureLayerNodes = generateNodes(wordEntry.failureLayerNodeEntries);
 
-        word.
+        word.layer.model.nodes = modelLayerNodes;
+        word.layer.success.nodes = successLayerNodes;
+        word.layer.failure.nodes = failureLayerNodes;
+
+        // 클러스터링 수행
+        word.layer.model.analyzer.initialize();
+        word.layer.success.analyzer.initialize();
+        word.layer.failure.analyzer.initialize();
 
         return word;
-
     }
 
     /**
@@ -314,18 +292,19 @@ public class SLWordLoader implements SLFeatureExtractorListener {
             // 파일이 존재하지 않을 경우
             if (!audioFile.exists()) {
                 System.out.println("Warning: Audio source '" + audioFile.getPath() + "' does not exist.");
-                totalGeneratingNodes--;
                 continue;
             }
 
             SLPcmData pcmData = null;
+            boolean processed = false;
 
             switch (getFileExtension(audioFile)) {
                 case "wav":
                     pcmData = SLPcmData.importPcm(audioFile);
                     break;
-                case "pronunciation":
+                case "spd": // 이미 전처리된 포맷
                     pcmData = SLPcmData.importWav(audioFile);
+                    processed = true;
                     break;
                 default:
                     // 지원하지 않는 포맷
@@ -346,10 +325,10 @@ public class SLWordLoader implements SLFeatureExtractorListener {
             nodeInfo.recordedDate = nodeEntry.recordedDate;
 
             // --------- 노드 생성하기 ---------
-            SLNode node = new SLNode(nodeEntry.uid, pcmData, nodeInfo);
+            SLNode node = new SLNode(nodeEntry.uid, nodeInfo, pcmData, processed);
 
-            // 노드 분석이 완료되었는지는 로더에서도 알아야 한다.
-            node.featureExtractor.addEventListener(this);
+            // 최고 uid 업데이트
+            SLNode.maximumUid = Math.max(SLNode.maximumUid, nodeEntry.uid);
 
             // 리스트에 추가
             nodes.add(node);
@@ -389,157 +368,6 @@ public class SLWordLoader implements SLFeatureExtractorListener {
             return attribute.getNodeValue();
         else
             return "unknown";
-    }
-
-
-    /**
-     * 노드가 생성되었을때
-     *
-     * @param node
-     */
-    public void onFeatureExtracted(SLNode node) {
-
-        currentGeneratedNodes++;
-
-        if (node != null)
-            generatedNodes.add(node);
-
-        // Uid maximum을 업데이트
-        int parsedUid = Integer.parseInt(node.info.uid);
-        SLNode.maximumUid = Math.max(SLNode.maximumUid, parsedUid);
-
-        // 연관된 knowledge가 있다면 링크시킨다.
-        //linkKnowledge(node);
-
-        // 만약 모든 노드가 다 생성되었다면
-        if (currentGeneratedNodes >= totalGeneratingNodes) {
-            generateWord();
-        }
-    }
-
-    /**
-     * 생성된 노드들을 조합하여 워드 데이터를 만든다.
-     */
-    private void generateWord() {
-
-        // 워드 생성
-        SLWord word = new SLWord(wordInfo);
-
-        // 생성된 노드들을 워드에 종류별로 추가
-        for (SLNode node : generatedNodes) {
-            switch (node.info.layer) {
-                case "model":
-                    word.nodeLayer.model.add(node);
-                    break;
-                case "success":
-                    word.nodeLayer.success.add(node);
-                    break;
-                case "failure":
-                    word.nodeLayer.failure.add(node);
-                    break;
-                default:
-            }
-        }
-
-        // 클러스터링한다.
-        word.clusterLayer.model.analyzer.initialize();
-        word.clusterLayer.success.analyzer.initialize();
-        word.clusterLayer.failure.analyzer.initialize();
-
-        // knowledge와 링크시킨다.
-       /* allocateKnowledge(word.clusterLayer.model.clusters, "model");
-        allocateKnowledge(word.clusterLayer.success.clusters, "model");
-        allocateKnowledge(word.clusterLayer.failure.clusters, "model");*/
-
-        // 이벤트를 발생시킨다.
-        dispatchEvent(word);
-    }
-/*
-
-    private void linkKnowledge(SLNode node) {
-        for (SLKnowledge knowledge : knowledgeList) {
-            if (knowledge.targetNodeUid.equals(node.info.uid)) {
-                knowledge.targetNode = node;
-            }
-        }
-    }
-
-
-    private void allocateKnowledge(SLDistanceMap<SLCluster> clusters, String layer) {
-
-
-        for (SLCluster cluster : clusters.getList()) {
-
-            boolean found = false;
-
-            for (SLKnowledge knowledge : knowledgeList) {
-                if (knowledge.targetNode == cluster.getCentroid()) {
-                    cluster.knowledge = knowledge;
-
-                    // 중복 할당 방지
-                    knowledge.targetNode = null;
-                    found = true;
-                }
-            }
-
-            if (found) continue;
-
-            double minimumDistance = Double.POSITIVE_INFINITY;
-            SLKnowledge closestKnowledge = null;
-
-            // centroid에 해당하는 knowledge가 없으면 가장 가까운 노드를 찾는다.
-            for (SLKnowledge knowledge : knowledgeList) {
-
-                // 동일 레이어가 아니면 패스
-                if (knowledge.targetNode == null || !knowledge.targetNode.info.layer.equals(layer))
-                    continue;
-
-                // 가장 가까운 knowledge holder를 찾는다.
-                double distance = cluster.getContext().wordNodes.getDistance(knowledge.targetNode, cluster.getCentroid());
-
-                if (minimumDistance > distance) {
-                    minimumDistance = distance;
-                    closestKnowledge = knowledge;
-                }
-            }
-
-            // threshold를 만족하면
-            if (minimumDistance < SLCluster.DISTANCE_THRESHOLD) {
-                cluster.knowledge = closestKnowledge;
-            }
-
-        }
-    }
-
-    */
-
-    /**
-     * 각 리스너들에게 워드가 생성되었다고 알린다.
-     *
-     * @param word
-     */
-    private void dispatchEvent(SLWord word) {
-        for (SLWordLoaderListener listener : listeners) {
-            listener.onWordGenerated(word);
-        }
-    }
-
-    /**
-     * 이벤트 리스너를 추가한다.
-     *
-     * @param listener
-     */
-    public void addEventListener(SLWordLoaderListener listener) {
-        this.listeners.add(listener);
-    }
-
-    /**
-     * 이벤트 리스너를 제거한다.
-     *
-     * @param listener
-     */
-    public void removeEventListener(SLWordLoaderListener listener) {
-        this.listeners.remove(listener);
     }
 
     /**
@@ -593,17 +421,12 @@ public class SLWordLoader implements SLFeatureExtractorListener {
         /**
          * 이 노드의 Unique ID
          */
-        public String uid;
+        public int uid;
 
         /**
          * 음성 데이터 소스
          */
         public String source;
-
-        /**
-         * 데이터의 레이어
-         */
-        public Layer layer;
 
         /**
          * 녹음자의 ID
@@ -637,8 +460,7 @@ public class SLWordLoader implements SLFeatureExtractorListener {
          * @param uid
          * @param descriptions
          */
-        public SLNodeEntry(Layer layer, String source, String uid, List<SLDescription> descriptions) {
-            this.layer = layer;
+        public SLNodeEntry(String source, int uid, List<SLDescription> descriptions) {
             this.source = source;
             this.uid = uid;
             this.descriptions = descriptions;

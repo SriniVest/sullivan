@@ -1,6 +1,8 @@
 package org.sullivan;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -101,22 +103,28 @@ public class SLCluster implements SLMeasurable<SLCluster> {
      * @return
      */
     public List<SLDescription> getDescriptions() {
+
         List<SLDescription> descriptions = new ArrayList<>();
 
-        // 이미 정렬되어 있으므로, 순서대로 하면 된다.
+        // centroid와의 연관성에 따라 소팅한다.
+        Collections.sort(nodes, (SLNode n1, SLNode n2) ->
+                (int) (context.wordNodes.getDistance(n1, centroid) - context.wordNodes.getDistance(n2, centroid))
+        );
+
         for (SLNode node : nodes) {
-            descriptions.addAll(node.info.descriptions);
+            descriptions.addAll(node.descriptions);
         }
 
-        // 만약 description이 비었다면,
-        // description density = total descriptions / cluster size
+        /*
+        만약 description이 비었다면,
+        description density = total descriptions / cluster size
+        */
         descriptionDensity = ((float) descriptions.size() / (float) nodes.size());
         if (descriptionDensity < 0.3f) {
             SLDescriptionRequest.request(this);
         }
 
         // TODO: 이 클러스터에 추가적인 DESCRIPTION이 필요한지 DETERMINE 하는 모델 만들기
-
 
         return descriptions;
     }
@@ -128,11 +136,6 @@ public class SLCluster implements SLMeasurable<SLCluster> {
      * @param node
      */
     public void addNode(SLNode node) {
-
-        // 등록되지 않은 노드라면 context에 등록한다.
-        if (!context.wordNodes.hasElement(node))
-            insertNode(node);
-
         this.nodes.add(node);
         updateCentroid();
     }
@@ -143,39 +146,9 @@ public class SLCluster implements SLMeasurable<SLCluster> {
      * @param nodes
      */
     public void addNodes(List<SLNode> nodes) {
-
-        for (SLNode node : nodes) {
-
-            // 등록되지 않은 노드라면 context에 등록한다.
-            if (!context.wordNodes.hasElement(node))
-                insertNode(node);
-        }
         this.nodes.addAll(nodes);
         updateCentroid();
     }
-
-    /**
-     * 노드를 추가한다.
-     * centroid와의 연관 정도에 따라 정렬(inertion sort)한다.
-     *
-     * @param node
-     */
-    private void insertNode(SLNode node) {
-
-        boolean added = false;
-
-        for (int i = 0; i < this.nodes.size(); i++) {
-            if (context.wordNodes.getDistance(centroid, node) < context.wordNodes.getDistance(centroid, this.nodes.get(i))) {
-                nodes.add(i, node);
-                added = true;
-                break;
-            }
-        }
-
-        if (!added)
-            nodes.add(node);
-    }
-
 
     /**
      * 클러스터에서 노드를 제거한다.
@@ -196,45 +169,6 @@ public class SLCluster implements SLMeasurable<SLCluster> {
         this.nodes.removeAll(nodes);
         updateCentroid();
     }
-
-    /**
-     * 클러스터의 중심 노드를 새로 계산한다.
-     */
-    public void updateCentroid() {
-
-        if (nodes.size() < 3) {
-            if (nodes.size() > 0)
-                centroid = nodes.get(0);
-            if (nodes.size() > 1) {
-                averageCentroidDistance = context.wordNodes.getDistance(nodes.get(0), nodes.get(1));
-            } else {
-                averageCentroidDistance = 0;
-            }
-            return;
-        }
-
-        SLNode centroidCandidate = null;
-        double minimumSum = Double.POSITIVE_INFINITY;
-
-        for (SLNode nodeA : nodes) {
-
-            double sum = 0;
-
-            for (SLNode nodeB : nodes) {
-                if (nodeA == nodeB) continue;
-
-                sum += context.wordNodes.getDistance(nodeA, nodeB);
-            }
-
-            if (sum < minimumSum) {
-                minimumSum = sum;
-                centroidCandidate = nodeA;
-            }
-        }
-        centroid = centroidCandidate;
-        averageCentroidDistance = minimumSum / nodes.size();
-    }
-
 
     /**
      * 두 클러스터 간 거리를 구한다.
@@ -261,9 +195,51 @@ public class SLCluster implements SLMeasurable<SLCluster> {
         mergedCluster.nodes.addAll(this.nodes);
         mergedCluster.nodes.addAll(cluster.nodes);
         mergedCluster.updateCentroid();
-        // 클러스터에 대한 설명을 합친다.
-        //mergedCluster.knowledge = SLKnowledge.merge(this.knowledge, cluster.knowledge);
 
         return mergedCluster;
     }
+
+    /**
+     * 클러스터의 중심 노드를 새로 계산한다.
+     */
+    private void updateCentroid() {
+
+        // 최소 클러스터 크기에 미치지 못할 경우
+        if (nodes.size() < 3) {
+
+            if (nodes.size() > 0)
+                centroid = nodes.get(0);
+
+            if (nodes.size() > 1)
+                averageCentroidDistance = context.wordNodes.getDistance(nodes.get(0), nodes.get(1));
+            else
+                averageCentroidDistance = 0;
+
+            return;
+        }
+
+
+        double minimumSum = Double.POSITIVE_INFINITY;
+        SLNode centroidCandidate = null;
+
+        for (SLNode nodeA : nodes) {
+
+            double sum = 0;
+
+            // 존재하는 다른 모든 노드에 대한 거리를 계산하여 더한다.
+            for (SLNode nodeB : nodes) {
+                if (nodeA.equals(nodeB)) continue;
+
+                sum += context.wordNodes.getDistance(nodeA, nodeB);
+            }
+
+            if (sum < minimumSum) {
+                minimumSum = sum;
+                centroidCandidate = nodeA;
+            }
+        }
+        centroid = centroidCandidate;
+        averageCentroidDistance = minimumSum / nodes.size();
+    }
+
 }

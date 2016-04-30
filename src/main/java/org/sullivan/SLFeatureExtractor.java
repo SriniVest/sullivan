@@ -53,11 +53,31 @@ public class SLFeatureExtractor implements AudioProcessor {
         listeners = new ArrayList<>();
     }
 
+    /**
+     * 음성 데이터 전처리 프로세스 - 이미 데이터 처리가 되어 있는 경우
+     */
+    public void process(SLPcmData pcmData) {
+
+        this.pcmData = pcmData;
+
+        /** 프레임별 처리 **/
+        AudioDispatcher dispatcher = pcmData.getAudioDispatcher(bufferSize, bufferOverlap);
+
+        // 특징행렬 추출기
+        mfccExtractor = new SLMfccExtractor(bufferSize, bufferOverlap, 12);
+
+        dispatcher.addAudioProcessor(mfccExtractor);
+
+        dispatcher.addAudioProcessor(this);
+
+        // 프로세싱 시작. 프로세싱은 별개의 스레드에서 이루어진다.
+        dispatcher.run();
+    }
 
     /**
      * 음성 데이터 전처리 프로세스
      */
-    public void process(SLPcmData pcmData) {
+    public void process(SLPcmData pcmData, String path) {
 
         this.pcmData = pcmData;
 
@@ -81,6 +101,9 @@ public class SLFeatureExtractor implements AudioProcessor {
         // 성대 음역대로 주파수 대역 거르기
         SLVoiceBandpassFilter bandpassFilter = new SLVoiceBandpassFilter(pcmData.sampleRate);
 
+        // 데이터 저장
+        SLWaveWriter waveWriter = new SLWaveWriter(dispatcher.getFormat(), path);
+
         // 특징행렬 추출기
         mfccExtractor = new SLMfccExtractor(bufferSize, bufferOverlap, 12);
 
@@ -88,6 +111,7 @@ public class SLFeatureExtractor implements AudioProcessor {
         dispatcher.addAudioProcessor(hfCompensator);
         dispatcher.addAudioProcessor(bandpassFilter);
         dispatcher.addAudioProcessor(mfccExtractor);
+        dispatcher.addAudioProcessor(waveWriter);
 
         dispatcher.addAudioProcessor(this);
 
@@ -115,7 +139,7 @@ public class SLFeatureExtractor implements AudioProcessor {
 
         // 이벤트를 dispatch한다.
         for (SLFeatureExtractorListener listener : listeners) {
-            listener.onFeatureExtracted();
+            listener.onFeatureExtracted(featureMatrix);
         }
     }
 

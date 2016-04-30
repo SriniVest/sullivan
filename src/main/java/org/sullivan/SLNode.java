@@ -14,7 +14,7 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
     /**
      * 노드의 고유 번호
      */
-    public String uid;
+    public int uid;
 
     /**
      * 노드에 대한 설명
@@ -39,7 +39,7 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
      * @param pcmData
      * @param info
      */
-    public SLNode(String uid, SLPcmData pcmData, SLNodeInfo info) {
+    public SLNode(int uid, SLNodeInfo info, SLPcmData pcmData, boolean processed) {
 
         this.uid = uid;
         this.info = info;
@@ -47,7 +47,16 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
 
         featureExtractor = new SLFeatureExtractor(5000, 1);
         featureExtractor.addEventListener(this);
-        featureExtractor.process(pcmData);
+
+        if (processed)
+            featureExtractor.process(pcmData);
+        else {
+            // 전처리된 발음이 저장될 장소
+            String path = "./data/" + uid + ".spd";
+
+            featureExtractor.process(pcmData, path);
+            info.source = new File(path);
+        }
     }
 
     /**
@@ -56,35 +65,11 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
      * @param featureMatrix
      * @param info
      */
-    public SLNode(String uid, List<float[]> featureMatrix, SLNodeInfo info) {
+    public SLNode(int uid, SLNodeInfo info, List<float[]> featureMatrix) {
         this.uid = uid;
         this.info = info;
         this.descriptions = new ArrayList<>();
         this.featureMatrix = featureMatrix;
-    }
-
-    /**
-     * 이 노드 하나만 포함하고 있는 클러스터를 생성한다.
-     *
-     * @return
-     */
-    public SLClustere asCluster(SLClusterGroup context) {
-        SLCluster cluster = new SLCluster(context);
-        cluster.addNode(this);
-
-        return cluster;
-    }
-
-    /**
-     * 독립형 단일 노드 클러스터
-     *
-     * @return
-     */
-    public SLCluster asCluster() {
-        SLCluster cluster = new SLCluster(new SLClusterGroup(new SLDistanceMap<SLNode>()));
-        cluster.addNode(this);
-
-        return cluster;
     }
 
     /**
@@ -215,6 +200,18 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
     }
 
     /**
+     * 이 노드 하나만 포함하고 있는 단위 클러스터를 생성한다.
+     *
+     * @return
+     */
+    public SLCluster asCluster(SLClusterGroup context) {
+        SLCluster cluster = new SLCluster(context);
+        cluster.addNode(this);
+
+        return cluster;
+    }
+
+    /**
      * 두 특성 행렬의 행에 대해 Euclidean 거리를 계산한다.
      *
      * @param a
@@ -245,7 +242,7 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
     // 노드의 동일성은 uid로만 판단한다.
     @Override
     public boolean equals(Object node) {
-        return this.uid.equals(((SLNode) node).uid);
+        return this.uid == ((SLNode) node).uid;
     }
 
     /**
@@ -257,6 +254,11 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
          * 음성 데이터 소스
          */
         public File source;
+
+        /**
+         * 스트림된 데이터
+         */
+        SLPcmData streamedData;
 
         /**
          * 데이터의 레이어

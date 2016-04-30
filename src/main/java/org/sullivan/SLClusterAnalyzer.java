@@ -48,30 +48,28 @@ public class SLClusterAnalyzer {
      * 노드 하나를 추가한 후 분석한다.
      *
      * @param node
+     * @return 추가된 클러스터
      */
     public SLCluster insert(SLNode node) {
 
-        // 모든 클러스터의 centroid를 비교해서 가장 가까운 것을 택한다.
-        // 만약 그 거리가 threshold보다 작으면 편입, 크면 독립
+        SLCluster cluster = node.asCluster(context);
 
-        double minimum = Double.POSITIVE_INFINITY;
-        SLCluster closestCluster = null;
+        // 클러스터 리스트에 단위 클러스터를 추가
+        context.clusters.add(cluster);
 
-        for (SLCluster cluster : context.clusters.getList()) {
-            double distance = context.wordNodes.getDistance(cluster.getCentroid(), node);
-            if (distance < minimum) {
-                minimum = distance;
-                closestCluster = cluster;
-            }
-        }
+        // 여기서 그냥 agglomerative() 써도 되지만 효율을 위해..
 
-        if (minimum < SLCluster.DISTANCE_THRESHOLD) {
+        // 가장 가까운 클러스터와의 거리가 threshold보다 작으면 합친다.
+        SLCluster closestCluster = context.clusters.getClosestElement(cluster);
+
+        if (closestCluster.getDistance(cluster) < SLCluster.DISTANCE_THRESHOLD) {
+            context.clusters.remove(cluster);
             closestCluster.addNode(node);
-        } else {
-            context.clusters.add(node.asCluster(context));
+
+            return closestCluster;
         }
 
-        return closestCluster;
+        return cluster;
     }
 
     /**
@@ -80,7 +78,12 @@ public class SLClusterAnalyzer {
      * @param node
      */
     public void displace(SLNode node) {
-        ㅂㄷㅎㅂㄷㅎ;
+
+        // 이 노드를 갖고 있는 클러스터를 찾은 후 리스트에서 제거한다.
+        for (SLCluster cluster : context.clusters.getList()) {
+            if (cluster.getNodes().contains(node))
+                cluster.removeNode(node);
+        }
     }
 
     /**

@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * Sullivan 시스템의 메인
  */
-public class SLMain implements SLCliListener, SLWordLoaderListener, SLFeatureExtractorListener {
+public class SLMain implements SLCliListener {
 
     public static final String ENGINE_VERSION = "2.1.3";
 
@@ -38,7 +38,6 @@ public class SLMain implements SLCliListener, SLWordLoaderListener, SLFeatureExt
     /**
      * Node 생성기
      */
-    public SLFeatureExtractor nodeGenerator;
     private SLWord requestWord;
 
     /**
@@ -53,11 +52,6 @@ public class SLMain implements SLCliListener, SLWordLoaderListener, SLFeatureExt
         words = new HashMap<>();
         wordLoader = new SLWordLoader();
         wordExporter = new SLWordExporter();
-
-        nodeGenerator = new SLFeatureExtractor(5000, 1);
-
-        wordLoader.addEventListener(this);
-        nodeGenerator.addEventListener(this);
 
         cli.addEventListener(this);
         cli.initialize();

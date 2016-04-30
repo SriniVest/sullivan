@@ -47,7 +47,7 @@ public class SLClusterGroup {
      *
      * @param node
      */
-    public void addNode(SLNode node) {
+    public SLCluster addNode(SLNode node) {
 
         // 워드 노드에 추가한다.
         wordNodes.add(node);
@@ -56,14 +56,14 @@ public class SLClusterGroup {
         nodes.add(node);
 
         // 분석한다.
-        analyzer.insert(node);
+        return analyzer.insert(node);
     }
 
     /**
      * 그룹에서 노드를 제거한다.
      */
     public void removeNode(SLNode node) {
-        제거 후 클러스터링 시행
+
         // 분석에서 제거한다.
         analyzer.displace(node);
 
@@ -73,7 +73,6 @@ public class SLClusterGroup {
         // 전체 워드 캐시에서 제거한다.
         wordNodes.remove(node);
     }
-
 
     /**
      * 이 클러스터군의 Davies-Bouldin Index를 구한다.

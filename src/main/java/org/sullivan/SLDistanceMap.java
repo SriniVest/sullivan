@@ -25,8 +25,10 @@ public class SLDistanceMap<T extends SLMeasurable<T>> {
         if (element1 == null || element2 == null)
             return Double.POSITIVE_INFINITY;
 
-        if (!distanceMap.containsKey(element1))
-            add(element1);
+        // 둘 중에 하나라도 내부 원소가 아니면 개별 비교한다(non-cached).
+        if (!distanceMap.containsKey(element1) || distanceMap.containsKey(element2)) {
+            return element1.getDistance(element2);
+        }
 
         Map<T, Double> map = distanceMap.get(element1);
 
@@ -42,6 +44,7 @@ public class SLDistanceMap<T extends SLMeasurable<T>> {
             map.put(element2, distance);
             distanceMap.get(element2).put(element1, distance);
         }
+
         return map.get(element2).doubleValue();
     }
 

@@ -38,7 +38,7 @@ public class SLWord {
         this.info = info;
 
         nodes = new SLDistanceMap<>();
-        layer = new SLClusterLayer();
+        layer = new SLClusterLayer(nodes);
     }
 
     /**
@@ -60,21 +60,22 @@ public class SLWord {
         SLCluster analyzedCluster;
 
         // 모델 클러스터에서 가장 인접한 노드를 찾는다.
-        closestModelCluster = clusterLayer.model.clusters.getClosestElement(node.asCluster());
+        nodes.add(node); // 노드 db 프리캐시 - 성능 향상에 도움이 된다.
+        closestModelCluster = layer.model.clusters.getClosestElement(node.asCluster(layer.model));
 
         // 근접 유사도를 검사한다.
-        double distance = closestModelCluster.getDistance(node.asCluster());
+        double distance = closestModelCluster.getDistance(node.asCluster(layer.model));
 
         // 최대 유사도 거리 한계치를 벗어날 경우: Failure 클러스터에 삽입한다.
         if (distance > SLCluster.DISTANCE_THRESHOLD) {
             report.classifiedAsFailure = true;
-            analyzedCluster = clusterLayer.failure.analyzer.insertNode(node);
+            analyzedCluster = layer.failure.addNode(node);
         }
 
         // 한계치 내부에 있을 경우: Success 클러스터에 삽입한다.
         else {
             report.classifiedAsFailure = false;
-            analyzedCluster = clusterLayer.success.analyzer.insertNode(node);
+            analyzedCluster = layer.success.addNode(node);
         }
 
         // 클러스터 특성을 분석한다.
@@ -85,11 +86,11 @@ public class SLWord {
 
         // 2. 세부 발음 특성: THRESHOLD 내에 있는 클러스터거나,
         // 거리의 Gaussian 분포에서 유사도 상위 30%안에 있는 클러스터의 특성을 제시한다.
-        report.characteristics.success = clusterLayer.success.clusters.getCloseElements(analyzedCluster, 0.3f);
+        report.characteristics.success = layer.success.clusters.getCloseElements(analyzedCluster, 0.3f);
 
         // 3. 취약점 분석
         // 마찬가지로 THRESHOLD 안에 있는 클러스터와 가우시안 상위 30% 클러스터 특징을 불러온다.
-        report.characteristics.failure = clusterLayer.failure.clusters.getCloseElements(analyzedCluster, 0.3f);
+        report.characteristics.failure = layer.failure.clusters.getCloseElements(analyzedCluster, 0.3f);
 
         // 4. 교정 (Failure 의 경우)
         // success layer 까지의 최단경로를 찾는다. 이 때 경로는
@@ -120,13 +121,13 @@ public class SLWord {
 
     private SLCmvPath<SLCluster> getOptimalPathToSuccess(SLCluster start, List<SLCluster> excluded) {
 
-        List<SLCluster> targetClusters = clusterLayer.failure.clusters.getList();
+        List<SLCluster> targetClusters = layer.failure.clusters.getList();
 
         // 이 노드가 종착점일 경우
         SLCmvPath<SLCluster> optimalPath = new SLCmvPath<>();
 
         // 가장 가까운 success 클러스터를 찾는다.
-        SLCluster closestCluster = clusterLayer.success.clusters.getClosestElement(start);
+        SLCluster closestCluster = layer.success.clusters.getClosestElement(start);
         optimalPath.addStep(closestCluster);
         optimalPath.addStepToFront(start);
 
@@ -162,23 +163,29 @@ public class SLWord {
         report += "version: " + info.version + "\n";
         report += "updated: " + info.registeredDate + "\n";
         report += "model layer: \n";
-        report += "    total wordNodes: " + nodeLayer.model.size() + "\n";
-        report += "    total clusters: " + clusterLayer.model.clusters.size() + "\n";
-        report += getLayerStatus(clusterLayer.model.clusters.getList());
+        report += "    total wordNodes: " + layer.model.nodes.size() + "\n";
+        report += "    total clusters: " + layer.model.clusters.size() + "\n";
+        report += getLayerStatus(layer.model.clusters.getList());
 
         report += "success layer: \n";
-        report += "    total wordNodes: " + nodeLayer.success.size() + "\n";
-        report += "    total clusters: " + clusterLayer.success.clusters.size() + "\n";
-        report += getLayerStatus(clusterLayer.success.clusters.getList());
+        report += "    total wordNodes: " + layer.success.nodes.size() + "\n";
+        report += "    total clusters: " + layer.success.clusters.size() + "\n";
+        report += getLayerStatus(layer.success.clusters.getList());
 
         report += "failure layer: \n";
-        report += "    total wordNodes: " + nodeLayer.failure.size() + "\n";
-        report += "    total clusters: " + clusterLayer.failure.clusters.size() + "\n";
-        report += getLayerStatus(clusterLayer.failure.clusters.getList());
+        report += "    total wordNodes: " + layer.failure.nodes.size() + "\n";
+        report += "    total clusters: " + layer.failure.clusters.size() + "\n";
+        report += getLayerStatus(layer.failure.clusters.getList());
 
         return report;
     }
 
+    /**
+     * 레이어 상태를 정리한다.
+     *
+     * @param clusters
+     * @return
+     */
     private String getLayerStatus(List<SLCluster> clusters) {
 
         String report = "";
@@ -216,10 +223,10 @@ public class SLWord {
          */
         public SLClusterGroup failure;
 
-        public SLClusterLayer(SLDistanceMap<SLNode> context) {
-            this.model = new SLClusterGroup(context);
-            this.success = new SLClusterGroup(context);
-            this.failure = new SLClusterGroup(context);
+        public SLClusterLayer(SLDistanceMap<SLNode> wordNode) {
+            this.model = new SLClusterGroup(wordNode);
+            this.success = new SLClusterGroup(wordNode);
+            this.failure = new SLClusterGroup(wordNode);
         }
     }
 
