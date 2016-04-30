@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * Sullivan 시스템의 메인
  */
-public class SLMain implements SLCliListener, SLWordLoaderListener, SLNodeGeneratorListener {
+public class SLMain implements SLCliListener, SLWordLoaderListener, SLFeatureExtractorListener {
 
     public static final String ENGINE_VERSION = "2.1.3";
 
@@ -38,7 +38,7 @@ public class SLMain implements SLCliListener, SLWordLoaderListener, SLNodeGenera
     /**
      * Node 생성기
      */
-    public SLNodeGenerator nodeGenerator;
+    public SLFeatureExtractor nodeGenerator;
     private SLWord requestWord;
 
     /**
@@ -54,7 +54,7 @@ public class SLMain implements SLCliListener, SLWordLoaderListener, SLNodeGenera
         wordLoader = new SLWordLoader();
         wordExporter = new SLWordExporter();
 
-        nodeGenerator = new SLNodeGenerator(5000, 1);
+        nodeGenerator = new SLFeatureExtractor(5000, 1);
 
         wordLoader.addEventListener(this);
         nodeGenerator.addEventListener(this);
@@ -174,7 +174,7 @@ public class SLMain implements SLCliListener, SLWordLoaderListener, SLNodeGenera
         nodeInfo.uid = (++SLNode.maximumUid) + "";
 
         SLPcmData pcmData = SLPcmData.importWav(source);
-        nodeGenerator.insert(pcmData, nodeInfo);
+        nodeGenerator.extract(pcmData, nodeInfo);
     }
 
     /**
@@ -192,7 +192,7 @@ public class SLMain implements SLCliListener, SLWordLoaderListener, SLNodeGenera
      *
      * @param node
      */
-    public void onNodeGenerated(SLNode node) {
+    public void onFeatureExtracted(SLNode node) {
         if (requestWord != null) {
             SLEvaluationReport report = requestWord.evaluate(node);
             cli.notify(report.getResult());

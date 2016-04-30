@@ -17,7 +17,24 @@ import java.util.List;
 /**
  * 워드 데이터 파일(*.word)로부터 워드(한 단어에 관한 총괄 데이터)를 생성한다.
  */
-public class SLWordLoader implements SLNodeGeneratorListener {
+public class SLWordLoader implements SLFeatureExtractorListener {
+
+    /**
+     * 워드의 세 레이어
+     */
+    private enum Layer {
+        MODEL("model"), SUCCESS("success"), FAILURE("failure");
+
+        private String label;
+
+        Layer(String label) {
+            this.label = label;
+        }
+
+        public String getLabel() {
+            return this.label;
+        }
+    }
 
     /**
      * .word 파일은 XML 형식을 갖고 있다.
@@ -28,6 +45,11 @@ public class SLWordLoader implements SLNodeGeneratorListener {
     private Document document;
 
     /**
+     * 파일을 처리할 패스
+     */
+    private File targetPath;
+
+    /**
      * 워드의 메타데이터
      */
     private SLWord.SLWordInfo wordInfo;
@@ -35,7 +57,7 @@ public class SLWordLoader implements SLNodeGeneratorListener {
     /**
      * 노드 생성기
      */
-    private SLNodeGenerator nodeGenerator;
+    private SLFeatureExtractor featureExtractor;
 
     /**
      * 생성되어야 할 총 노드 수
@@ -59,10 +81,10 @@ public class SLWordLoader implements SLNodeGeneratorListener {
 
     public SLWordLoader() {
 
-        nodeGenerator = new SLNodeGenerator(5000, 1);
-        builderFactory = DocumentBuilderFactory.newInstance();
+        featureExtractor = new SLFeatureExtractor(5000, 1);
+        featureExtractor.addEventListener(this);
 
-        nodeGenerator.addEventListener(this);
+        builderFactory = DocumentBuilderFactory.newInstance();
 
         listeners = new ArrayList<>();
 
@@ -77,32 +99,29 @@ public class SLWordLoader implements SLNodeGeneratorListener {
         try {
             generatedNodes = new ArrayList<>();
 
-            List<SLNode.SLNodeInfo> wordModelData;
-            List<SLNode.SLNodeInfo> wordSuccessData;
-            List<SLNode.SLNodeInfo> wordFailureData;
+            targetPath = wordDataFile.getAbsoluteFile().getParentFile();
 
+            // XML 파일을 파싱한다.
             document = builder.parse(wordDataFile);
             document.getDocumentElement().normalize();
 
-            // 워드의 메타데이터를 읽어온다.
-            Node word = document.getElementsByTagName("word").item(0);
-            Node nameNode = document.getElementsByTagName("name").item(0);
+            NodeList childNodes = document.getChildNodes();
 
-            wordInfo = new SLWord.SLWordInfo(nameNode.getTextContent());
-            wordInfo.version = word.getAttributes().getNamedItem("version").getNodeValue();
-            wordInfo.date = word.getAttributes().getNamedItem("date").getNodeValue();
+            for (int i = 0; i < childNodes.getLength(); i++) {
 
-            // 워드의 음성 데이터를 읽어온다.
-            wordModelData = getNodesInLayer("model");
-            wordSuccessData = getNodesInLayer("success");
-            wordFailureData = getNodesInLayer("failure");
+                Node childNode = childNodes.item(i);
 
-            totalGeneratingNodes = wordModelData.size() + wordSuccessData.size() + wordFailureData.size();
+                if (!childNode.getNodeName().equals("word"))
+                    continue;
 
-            // 로드된 정보를 바탕으로 워드 내부의 노드를 생성한다.
-            generateNodes(wordModelData);
-            generateNodes(wordSuccessData);
-            generateNodes(wordFailureData);
+                SLWordEntry wordEntry = getWordEntry(childNode);
+
+                if (wordEntry == null)
+                    System.out.println("Invalid word data format.");
+
+                generateWord(wordEntry);
+
+            }
 
         } catch (SAXException | IOException e) {
             e.printStackTrace();
@@ -110,118 +129,275 @@ public class SLWordLoader implements SLNodeGeneratorListener {
     }
 
     /**
-     * 레이어로부터 데이터 파일의 목록을 구한다.
+     * XML 노드로부터 워드 정보를 잃어온다.
      *
-     * @param layer
+     * @param wordNode
      * @return
      */
-    private List<SLNode.SLNodeInfo> getNodesInLayer(String layer) {
+    private SLWordEntry getWordEntry(Node wordNode) {
 
-        List<SLNode.SLNodeInfo> nodes = new ArrayList<>();
+        NodeList childNodes = wordNode.getChildNodes();
 
-        // 레이어 노드
-        Node layerNode = document.getElementsByTagName(layer).item(0);
+        Node nameNode = null;
+        Node modelNode = null;
+        Node successNode = null;
+        Node failureNode = null;
 
-        // 자식 노드
-        NodeList dataNodes = layerNode.getChildNodes();
+        for (int i = 0; i < childNodes.getLength(); i++) {
 
-        for (int i = 0; i < dataNodes.getLength(); i++) {
+            Node childNode = childNodes.item(i);
 
-            // 데이터 노드
-            Node dataNode = dataNodes.item(i);
+            switch (childNode.getNodeName()) {
+                case "name":
+                    nameNode = childNode;
+                    break;
+                case "model":
+                    modelNode = childNode;
+                    break;
+                case "success":
+                    successNode = childNode;
+                    break;
+                case "failure":
+                    failureNode = childNode;
+                    break;
+            }
+        }
 
-            // <data> 만 분석
-            if (!dataNode.getNodeName().equals("data"))
+        // 필수 요소는 없으면 안 된다.
+        if (wordNode == null || nameNode == null || modelNode == null || successNode == null || failureNode == null)
+            return null;
+
+        NamedNodeMap wordAttributes = wordNode.getAttributes();
+
+        String name = nameNode.getTextContent();
+        String version = getAttributeValue(wordAttributes, "version");
+        String registeredDate = getAttributeValue(wordAttributes, "registered-registeredDate");
+
+        // 워드의 음성 데이터를 읽어온다.
+        List<SLNodeEntry> modelLayerNodeEntries = getNodeEntries(modelNode);
+        List<SLNodeEntry> successLayerNodeEntries = getNodeEntries(successNode);
+        List<SLNodeEntry> failureLayerNodeEntries = getNodeEntries(failureNode);
+
+        SLWordEntry wordEntry = new SLWordEntry(name, modelLayerNodeEntries, successLayerNodeEntries, failureLayerNodeEntries);
+        wordEntry.version = version;
+        wordEntry.registeredDate = registeredDate;
+
+        return wordEntry;
+    }
+
+    /**
+     * XML 노드로부터 내부의 노드(데이터) 정보를 불러온다.
+     *
+     * @param layerNode
+     * @return
+     */
+    private List<SLNodeEntry> getNodeEntries(Node layerNode) {
+
+        List<SLNodeEntry> nodeEntries = new ArrayList<>();
+
+        NodeList childNodes = layerNode.getChildNodes();
+
+        for (int i = 0; i < childNodes.getLength(); i++) {
+
+            Node childNode = childNodes.item(i);
+
+            // 태그 이름이 형식에 맞는지 체크한다.
+            if (!childNode.getNodeName().equals("data"))
                 continue;
 
-            // 데이터 노드의 속성
-            NamedNodeMap attributes = dataNode.getAttributes();
+            NamedNodeMap attributes = childNode.getAttributes();
 
-            // 데이터 음성 소스
-            String source = attributes.getNamedItem("source").getNodeValue();
+            // 값들을 읽어온다.
+            Layer layer = Layer.valueOf(layerNode.getNodeName());
+            String source = getAttributeValue(attributes, "source");
+            String uid = getAttributeValue(attributes, "uid");
+            String recorder = getAttributeValue(attributes, "recorder");
+            String recorderSex = getAttributeValue(attributes, "recorder-sex");
+            String recorderAge = getAttributeValue(attributes, "recorder-age");
+            String recordedDate = getAttributeValue(attributes, "recorded-registeredDate");
+            List<SLDescription> descriptions = new ArrayList<>();
 
-            // 노드 메타데이터
-            SLNode.SLNodeInfo nodeInfo = new SLNode.SLNodeInfo(source);
+            if (source.equals("unknown"))
+                throw new NullPointerException("Source attribute must not be null.");
+            if (uid.equals("unknown"))
+                throw new NullPointerException("UID attribute must not be null.");
 
-            nodeInfo.layer = layer;
-            nodeInfo.uid = attributes.getNamedItem("uid").getNodeValue();
+            NodeList descriptionNodes = childNode.getChildNodes();
 
-            if (nodeInfo.uid == null || nodeInfo.uid.equals(""))
-                System.out.println("Node uid must not be null. (" + source + ")");
-
-            nodeInfo.recorder = attributes.getNamedItem("name").getNodeValue();
-            nodeInfo.recorderSex = attributes.getNamedItem("sex").getNodeValue() == "male" ? true : false;
-            nodeInfo.recorderAge = Integer.parseInt(attributes.getNamedItem("age").getNodeValue());
-            nodeInfo.recordedDate = attributes.getNamedItem("date").getNodeValue();
-
-            NodeList descriptionNodes = dataNode.getChildNodes();
-
+            // 각 설명에 대하여
             for (int j = 0; j < descriptionNodes.getLength(); j++) {
-                Node descriptionNode = descriptionNodes.item(j);
 
-                // description 노드에 대해서만 검사
+                Node descriptionNode = descriptionNodes.item(j);
                 if (!descriptionNode.getNodeName().equals("description"))
                     continue;
 
                 NamedNodeMap descriptionAttributes = descriptionNode.getAttributes();
-                String descriptionText = descriptionNode.getTextContent();
-                String name = descriptionAttributes.getNamedItem("name").getNodeValue();
 
-                SLDescription description = new SLDescription(descriptionText, new SLDescription.SLDescriptionInfo(name));
-                nodeInfo.descriptions.add(description);
+                // 값들을 읽어온다.
+                String text = descriptionNode.getTextContent();
+                String prominence = getAttributeValue(descriptionAttributes, "prominence");
+                String rate = getAttributeValue(descriptionAttributes, "rate");
+                String provider = getAttributeValue(descriptionAttributes, "provider");
+                String registeredDate = getAttributeValue(descriptionAttributes, "registered-registeredDate");
+
+                SLDescription.SLDescriptionInfo descriptionInfo = new SLDescription.SLDescriptionInfo();
+
+                // 채워 넣는다.
+                if (prominence.matches("^-?\\d+$"))
+                    descriptionInfo.prominence = Integer.parseInt(prominence);
+                if (rate.matches("^-?\\d+$"))
+                    descriptionInfo.rate = Integer.parseInt(rate);
+                descriptionInfo.provider = provider;
+                descriptionInfo.registeredDate = registeredDate;
+
+                SLDescription description = new SLDescription(text, descriptionInfo);
+
+                // 리스트에 추가
+                descriptions.add(description);
             }
 
-            nodes.add(nodeInfo);
+            // 채워 넣는다.
+            SLNodeEntry nodeEntry = new SLNodeEntry(layer, source, uid, descriptions);
+            nodeEntry.recorder = recorder;
+            nodeEntry.recorderAge = recorderAge;
+            nodeEntry.recorderSex = recorderSex;
+            nodeEntry.recordedDate = recordedDate;
+
+            nodeEntries.add(nodeEntry);
+        }
+
+        return nodeEntries;
+    }
+
+
+    /**
+     * 워드 정보를 바탕으로 워드를 생성한다.
+     *
+     * @param wordEntry
+     * @return
+     */
+    private SLWord generateWord(SLWordEntry wordEntry) {
+
+        // 워드 메타데이터
+        SLWord.SLWordInfo wordInfo = new SLWord.SLWordInfo();
+        wordInfo.version = wordEntry.version;
+        wordInfo.registeredDate = wordEntry.registeredDate;
+
+        SLWord word = new SLWord(wordEntry.name, wordInfo);
+
+        List<SLNode> modelLayerNodes = generateNodes(wordEntry.modelLayerNodeEntries);
+        List<SLNode> successLayerNodes = generateNodes(wordEntry.successLayerNodeEntries);
+        List<SLNode> failureLayerNodes = generateNodes(wordEntry.failureLayerNodeEntries);
+
+        word.
+
+        return word;
+
+    }
+
+    /**
+     * 노드 정보를 바탕으로 노드를 생성한다.
+     *
+     * @param nodeEntries
+     * @return
+     */
+    private List<SLNode> generateNodes(List<SLNodeEntry> nodeEntries) {
+
+        List<SLNode> nodes = new ArrayList<>();
+
+        for (SLNodeEntry nodeEntry : nodeEntries) {
+
+            // --------- PCM 데이터 불러오기 --------- //
+
+            File audioFile = new File(targetPath, nodeEntry.source);
+
+            // 파일이 존재하지 않을 경우
+            if (!audioFile.exists()) {
+                System.out.println("Warning: Audio source '" + audioFile.getPath() + "' does not exist.");
+                totalGeneratingNodes--;
+                continue;
+            }
+
+            SLPcmData pcmData = null;
+
+            switch (getFileExtension(audioFile)) {
+                case "wav":
+                    pcmData = SLPcmData.importPcm(audioFile);
+                    break;
+                case "pronunciation":
+                    pcmData = SLPcmData.importWav(audioFile);
+                    break;
+                default:
+                    // 지원하지 않는 포맷
+                    break;
+            }
+
+            if (pcmData == null) {
+                continue;
+            }
+
+            // --------- Node Info 생성하기 --------- //
+
+            SLNode.SLNodeInfo nodeInfo = new SLNode.SLNodeInfo();
+            nodeInfo.source = audioFile;
+            nodeInfo.recorder = nodeEntry.recorder;
+            nodeInfo.recorderAge = nodeEntry.recorderAge;
+            nodeInfo.recorderSex = nodeEntry.recorderSex;
+            nodeInfo.recordedDate = nodeEntry.recordedDate;
+
+            // --------- 노드 생성하기 ---------
+            SLNode node = new SLNode(nodeEntry.uid, pcmData, nodeInfo);
+
+            // 노드 분석이 완료되었는지는 로더에서도 알아야 한다.
+            node.featureExtractor.addEventListener(this);
+
+            // 리스트에 추가
+            nodes.add(node);
         }
 
         return nodes;
     }
 
     /**
-     * 노드 정보를 바탕으로 노드를 생성한다.
+     * 파일의 확장명을 구한다.
      *
-     * @param nodeInfos
+     * @param file
      * @return
      */
-    private void generateNodes(List<SLNode.SLNodeInfo> nodeInfos) {
+    private String getFileExtension(File file) {
 
-        for (SLNode.SLNodeInfo nodeInfo : nodeInfos) {
+        int i = file.getName().lastIndexOf('.');
 
-            File audioFile = new File("./data/" + nodeInfo.source);
-
-            // 파일이 존재하지 않을 경우
-            if (!audioFile.exists()) {
-                System.out.println("Warning: Audio source '" + nodeInfo.source + "' does not exists.");
-                totalGeneratingNodes--;
-                continue;
-            }
-
-            // 파일 확장자 구하기
-            String extension = "";
-            int i = audioFile.getName().lastIndexOf('.');
-            if (i > 0) {
-                extension = audioFile.getName().substring(i + 1).toLowerCase();
-            }
-
-            SLPcmData pcmData = null;
-
-            // 오디오 데이터를 PCM 형식으로 변환한다.
-            if (extension.equals("pronunciation")) {
-                pcmData = SLPcmData.importPcm(audioFile);
-            } else if (extension.equals("wav")) {
-                pcmData = SLPcmData.importWav(audioFile);
-            }
-
-            nodeGenerator.insert(pcmData, nodeInfo);
-        }
+        if (i > 0)
+            return file.getName().substring(i + 1).toLowerCase();
+        else
+            return "";
     }
+
+    /**
+     * XML 어트리뷰트에서 속성을 구한다. 속성이 비었다면 'unknown'을 리턴한다.
+     *
+     * @param attributes
+     * @param attributeName
+     * @return
+     */
+    private String getAttributeValue(NamedNodeMap attributes, String attributeName) {
+
+        Node attribute = attributes.getNamedItem(attributeName);
+
+        if (attribute != null && attribute.getNodeValue().trim().length() < 1)
+            return attribute.getNodeValue();
+        else
+            return "unknown";
+    }
+
 
     /**
      * 노드가 생성되었을때
      *
      * @param node
      */
-    public void onNodeGenerated(SLNode node) {
+    public void onFeatureExtracted(SLNode node) {
 
         currentGeneratedNodes++;
 
@@ -319,7 +495,7 @@ public class SLWordLoader implements SLNodeGeneratorListener {
                     continue;
 
                 // 가장 가까운 knowledge holder를 찾는다.
-                double distance = cluster.getContext().nodes.getDistance(knowledge.targetNode, cluster.getCentroid());
+                double distance = cluster.getContext().wordNodes.getDistance(knowledge.targetNode, cluster.getCentroid());
 
                 if (minimumDistance > distance) {
                     minimumDistance = distance;
@@ -366,5 +542,107 @@ public class SLWordLoader implements SLNodeGeneratorListener {
         this.listeners.remove(listener);
     }
 
+    /**
+     * 워드를 구성하는데 필요한 정보들
+     */
+    private static class SLWordEntry {
+
+        /**
+         * 단어의 이름
+         */
+        public String name;
+
+        /**
+         * 단어 포멧의 버전
+         */
+        public String version;
+
+        /**
+         * 등록된 날
+         */
+        public String registeredDate;
+
+        /**
+         * 모델 레이어
+         */
+        public List<SLNodeEntry> modelLayerNodeEntries;
+
+        /**
+         * 성공 레이어
+         */
+        public List<SLNodeEntry> successLayerNodeEntries;
+
+        /**
+         * 실패 레이어
+         */
+        public List<SLNodeEntry> failureLayerNodeEntries;
+
+        public SLWordEntry(String name, List<SLNodeEntry> modelLayerNodeEntries, List<SLNodeEntry> successLayerNodeEntries, List<SLNodeEntry> failureLayerNodeEntries) {
+            this.name = name;
+            this.modelLayerNodeEntries = modelLayerNodeEntries;
+            this.successLayerNodeEntries = successLayerNodeEntries;
+            this.failureLayerNodeEntries = failureLayerNodeEntries;
+        }
+    }
+
+    /**
+     * 노드를 구성하는데 필요한 정보들
+     */
+    private static class SLNodeEntry {
+
+        /**
+         * 이 노드의 Unique ID
+         */
+        public String uid;
+
+        /**
+         * 음성 데이터 소스
+         */
+        public String source;
+
+        /**
+         * 데이터의 레이어
+         */
+        public Layer layer;
+
+        /**
+         * 녹음자의 ID
+         */
+        public String recorder;
+
+        /**
+         * 녹음자의 나이
+         */
+        public String recorderAge;
+
+        /**
+         * 녹음자의 성별
+         */
+        public String recorderSex;
+
+        /**
+         * 녹음된 날짜
+         */
+        public String recordedDate;
+
+        /**
+         * 노드 Description
+         */
+        public List<SLDescription> descriptions;
+
+        /**
+         * 노드를 구성하는 데 필요한 필수 데이터를 입력받는다.
+         *
+         * @param source
+         * @param uid
+         * @param descriptions
+         */
+        public SLNodeEntry(Layer layer, String source, String uid, List<SLDescription> descriptions) {
+            this.layer = layer;
+            this.source = source;
+            this.uid = uid;
+            this.descriptions = descriptions;
+        }
+    }
 
 }

@@ -12,7 +12,7 @@ import java.util.*;
  * 음성 데이터를 특징행렬(Feature Matrix)로 가공한 형태인 노드로 만들어 준다.
  * 정확한 특징 분석을 위해 여러 음성 전처리 기법을 적용하였다.
  */
-public class SLNodeGenerator implements AudioProcessor {
+public class SLFeatureExtractor2 implements AudioProcessor {
 
     public static boolean DEBUG_PLAY = false;
 
@@ -36,18 +36,13 @@ public class SLNodeGenerator implements AudioProcessor {
      */
     private SLNodeGeneratorEntry processingEntry;
 
-    /**
-     * 음성 처리 모듈들
-     */
-    private SLVolumeNormalizer volumeNormalizer;
-    private SLHighFrequencyCompensator hfCompensator;
-    private SLVoiceBandpassFilter bandpassFilter;
-    private SLFeatureExtractor featureExtractor;
+
+    private SLMfccExtractor mfccExtractor;
 
     /**
      * 이벤트 리스너들
      */
-    private List<SLNodeGeneratorListener> listeners;
+    private List<SLFeatureExtractorListener> listeners;
 
     /**
      * 노드 처리기를 생성한다.
@@ -55,7 +50,7 @@ public class SLNodeGenerator implements AudioProcessor {
      * @param bufferSize
      * @param bufferOverlap
      */
-    public SLNodeGenerator(int bufferSize, int bufferOverlap) {
+    public SLFeatureExtractor2(int bufferSize, int bufferOverlap) {
 
         this.bufferSize = bufferSize;
         this.bufferOverlap = bufferOverlap;
@@ -70,7 +65,7 @@ public class SLNodeGenerator implements AudioProcessor {
      * @param pcmData
      * @param nodeInfo
      */
-    public void insert(SLPcmData pcmData, SLNode.SLNodeInfo nodeInfo) {
+    public void extract(SLPcmData pcmData, SLNode.SLNodeInfo nodeInfo) {
 
         // 프로세싱 큐에 넣는다.
         processingQueue.add(new SLNodeGeneratorEntry(pcmData, nodeInfo));
@@ -103,21 +98,21 @@ public class SLNodeGenerator implements AudioProcessor {
         AudioDispatcher dispatcher = processingEntry.pcmData.getAudioDispatcher(bufferSize, bufferOverlap);
 
         // 볼륨 크기 일반화
-        volumeNormalizer = new SLVolumeNormalizer();
+        SLVolumeNormalizer volumeNormalizer = new SLVolumeNormalizer();
 
         // 고주파수 보상
-        hfCompensator = new SLHighFrequencyCompensator();
+        SLHighFrequencyCompensator hfCompensator = new SLHighFrequencyCompensator();
 
         // 성대 음역대로 주파수 대역 거르기
-        bandpassFilter = new SLVoiceBandpassFilter(processingEntry.pcmData.sampleRate);
+        SLVoiceBandpassFilter bandpassFilter = new SLVoiceBandpassFilter(processingEntry.pcmData.sampleRate);
 
         // 특징행렬 추출기
-        featureExtractor = new SLFeatureExtractor(bufferSize, bufferOverlap, 12);
+        mfccExtractor = new SLMfccExtractor(bufferSize, bufferOverlap, 12);
 
         dispatcher.addAudioProcessor(volumeNormalizer);
         dispatcher.addAudioProcessor(hfCompensator);
         dispatcher.addAudioProcessor(bandpassFilter);
-        dispatcher.addAudioProcessor(featureExtractor);
+        dispatcher.addAudioProcessor(mfccExtractor);
 
         // 디버깅 모드에서는 처리된 음성을 들어봐야 하므로 재생 프로세스를 추가한다.
         if (DEBUG_PLAY) dispatcher.addAudioProcessor(getAudioPlayer(dispatcher));
@@ -146,7 +141,7 @@ public class SLNodeGenerator implements AudioProcessor {
         processingEntry.nodeInfo.source = filePath;
 
         // 특징행렬 취득
-        List<float[]> featureMatrix = featureExtractor.getFeatureMatrix();
+        List<float[]> featureMatrix = mfccExtractor.getFeatureMatrix();
 
         // 모든 데이터는 일반화를 위해 Big Endian으로 통일한다.
         if (processingEntry.pcmData.isBigEndian)
@@ -160,8 +155,8 @@ public class SLNodeGenerator implements AudioProcessor {
             preprocess();
 
         // 이벤트를 dispatch한다.
-        for (SLNodeGeneratorListener listener : listeners) {
-            listener.onNodeGenerated(node);
+        for (SLFeatureExtractorListener listener : listeners) {
+            listener.onFeatureExtracted(node);
         }
     }
 
@@ -175,7 +170,7 @@ public class SLNodeGenerator implements AudioProcessor {
      *
      * @param listener
      */
-    public void addEventListener(SLNodeGeneratorListener listener) {
+    public void addEventListener(SLFeatureExtractorListener listener) {
         this.listeners.add(listener);
     }
 
@@ -184,7 +179,7 @@ public class SLNodeGenerator implements AudioProcessor {
      *
      * @param listener
      */
-    public void removeEventListener(SLNodeGeneratorListener listener) {
+    public void removeEventListener(SLFeatureExtractorListener listener) {
         this.listeners.remove(listener);
     }
 

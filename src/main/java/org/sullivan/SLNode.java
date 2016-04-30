@@ -1,14 +1,25 @@
 package org.sullivan;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 노드는 음성 데이터 하나를 의미한다.
  */
-public class SLNode implements SLMeasurable<SLNode> {
+public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener {
 
     public static int maximumUid = 0;
+
+    /**
+     * 노드의 고유 번호
+     */
+    public String uid;
+
+    /**
+     * 노드에 대한 설명
+     */
+    public List<SLDescription> descriptions;
 
     /**
      * 노드의 메타데이터
@@ -19,9 +30,36 @@ public class SLNode implements SLMeasurable<SLNode> {
      * 노드의 Feature 행렬
      */
     public List<float[]> featureMatrix;
+    public SLFeatureExtractor featureExtractor;
 
-    public SLNode(List<float[]> featureMatrix, SLNodeInfo info) {
+    /**
+     * PCM 데이터로부터 노드 생성
+     * 이 PCM 데이터의 특성행렬로의 변환은 병렬적으로 이루어진다.
+     *
+     * @param pcmData
+     * @param info
+     */
+    public SLNode(String uid, SLPcmData pcmData, SLNodeInfo info) {
+
+        this.uid = uid;
         this.info = info;
+        this.descriptions = new ArrayList<>();
+
+        featureExtractor = new SLFeatureExtractor(5000, 1);
+        featureExtractor.addEventListener(this);
+        featureExtractor.process(pcmData);
+    }
+
+    /**
+     * 이미 존재하는 특성행렬로 노드 생성
+     *
+     * @param featureMatrix
+     * @param info
+     */
+    public SLNode(String uid, List<float[]> featureMatrix, SLNodeInfo info) {
+        this.uid = uid;
+        this.info = info;
+        this.descriptions = new ArrayList<>();
         this.featureMatrix = featureMatrix;
     }
 
@@ -30,7 +68,7 @@ public class SLNode implements SLMeasurable<SLNode> {
      *
      * @return
      */
-    public SLCluster asCluster(SLClusterGroup context) {
+    public SLClustere asCluster(SLClusterGroup context) {
         SLCluster cluster = new SLCluster(context);
         cluster.addNode(this);
 
@@ -90,6 +128,7 @@ public class SLNode implements SLMeasurable<SLNode> {
 
     /**
      * 두 노드 간 cost path를 계산한다.
+     *
      * @param node
      * @return
      */
@@ -134,7 +173,7 @@ public class SLNode implements SLMeasurable<SLNode> {
 
             int ni = 0, nj = 0;
 
-            if (i > 0 && j > 0 && map[i - 1][j - 1] < minimum){
+            if (i > 0 && j > 0 && map[i - 1][j - 1] < minimum) {
                 minimum = map[i - 1][j - 1];
                 ni = i - 1;
                 nj = j - 1;
@@ -175,7 +214,6 @@ public class SLNode implements SLMeasurable<SLNode> {
         return path;
     }
 
-
     /**
      * 두 특성 행렬의 행에 대해 Euclidean 거리를 계산한다.
      *
@@ -195,19 +233,30 @@ public class SLNode implements SLMeasurable<SLNode> {
     }
 
     /**
+     * feature matrix 추출이 완료되었을 때
+     *
+     * @param featureMatrix
+     */
+    public void onFeatureExtracted(List<float[]> featureMatrix) {
+        this.featureMatrix = featureMatrix;
+        featureExtractor = null;
+    }
+
+    // 노드의 동일성은 uid로만 판단한다.
+    @Override
+    public boolean equals(Object node) {
+        return this.uid.equals(((SLNode) node).uid);
+    }
+
+    /**
      * 노드의 메타데이터를 담는 클래스
      */
     public static class SLNodeInfo {
 
         /**
-         * 이 노드의 Unique ID
-         */
-        public String uid;
-
-        /**
          * 음성 데이터 소스
          */
-        public String source;
+        public File source;
 
         /**
          * 데이터의 레이어
@@ -222,26 +271,20 @@ public class SLNode implements SLMeasurable<SLNode> {
         /**
          * 녹음자의 나이
          */
-        public int recorderAge;
+        public String recorderAge;
 
         /**
          * 녹음자의 성별
          */
-        public boolean recorderSex;
+        public String recorderSex;
 
         /**
          * 녹음된 날짜
          */
         public String recordedDate;
 
-        /**
-         * 노드 Description
-         */
-        public List<SLDescription> descriptions;
 
-        public SLNodeInfo(String source) {
-            this.source = source;
-            this.descriptions = new ArrayList<>();
+        public SLNodeInfo() {
         }
     }
 

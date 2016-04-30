@@ -17,7 +17,7 @@ public class SLDescription {
 
     public SLDescription(String description) {
         this.description = description;
-        this.info = new SLDescriptionInfo("");
+        this.info = new SLDescriptionInfo();
     }
 
     public SLDescription(String description, SLDescriptionInfo info) {
@@ -31,24 +31,26 @@ public class SLDescription {
     public static class SLDescriptionInfo {
 
         /**
-         * 추가된 날짜
+         * 설명의 영향력
          */
-        public String date;
+        public int prominence;
 
         /**
-         * 추가한 자의 이름
-         */
-        public String name;
-
-        /**
-         * 평점(이 설명의 유용성)
+         * 설명에 대한 평점
          */
         public int rate;
 
-        public String raw;
+        /**
+         * 설명을 올린 사람
+         */
+        public String provider;
 
-        public SLDescriptionInfo(String raw) {
-            this.raw = raw;
+        /**
+         * 설명이 등록된 날짜
+         */
+        public String registeredDate;
+
+        public SLDescriptionInfo() {
         }
     }
 

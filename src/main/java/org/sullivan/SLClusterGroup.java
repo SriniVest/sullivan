@@ -1,6 +1,6 @@
 package org.sullivan;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -12,9 +12,14 @@ import java.util.List;
 public class SLClusterGroup {
 
     /**
-     * 클러스터군의 전체 노드 데이터베이스
+     * 워드 내부에서 공유되는 노드 맵
      */
-    public SLDistanceMap<SLNode> nodes;
+    public SLDistanceMap<SLNode> wordNodes;
+
+    /**
+     * 클러스터 그룹의 노드들
+     */
+    public List<SLNode> nodes;
 
     /**
      * 클러스터 분석기
@@ -26,23 +31,49 @@ public class SLClusterGroup {
      */
     public SLDistanceMap<SLCluster> clusters;
 
-    /**
-     * 고립군으로 분류된 클러스터 리스트 (프로세싱에서만 사용되는 임시 value)
-     */
-    public List<SLCluster> isolatedClusters;
+    public SLClusterGroup(SLDistanceMap<SLNode> distanceCache) {
 
-    public SLClusterGroup(SLDistanceMap<SLNode> nodeMap) {
+        this.wordNodes = distanceCache;
+        this.nodes = new ArrayList<>();
+
         this.analyzer = new SLClusterAnalyzer(this);
-        this.nodes = nodeMap;
         this.clusters = new SLDistanceMap<>();
-        this.isolatedClusters = new LinkedList<>();
 
-        analyzer.build();
+        analyzer.initialize();
     }
 
-    public SLClusterGroup() {
-        this(new SLDistanceMap<SLNode>());
+    /**
+     * 클러스터 그룹에 노드를 추가한다. 추가한 노드는 분석된다.
+     *
+     * @param node
+     */
+    public void addNode(SLNode node) {
+
+        // 워드 노드에 추가한다.
+        wordNodes.add(node);
+
+        // 그룹내 노드 리스트에 추가한다.
+        nodes.add(node);
+
+        // 분석한다.
+        analyzer.insert(node);
     }
+
+    /**
+     * 그룹에서 노드를 제거한다.
+     */
+    public void removeNode(SLNode node) {
+        제거 후 클러스터링 시행
+        // 분석에서 제거한다.
+        analyzer.displace(node);
+
+        // 그룹 내 리스트에서 제거한다.
+        nodes.remove(node);
+
+        // 전체 워드 캐시에서 제거한다.
+        wordNodes.remove(node);
+    }
+
 
     /**
      * 이 클러스터군의 Davies-Bouldin Index를 구한다.

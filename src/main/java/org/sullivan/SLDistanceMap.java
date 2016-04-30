@@ -22,6 +22,9 @@ public class SLDistanceMap<T extends SLMeasurable<T>> {
      */
     public double getDistance(T element1, T element2) {
 
+        if (element1 == null || element2 == null)
+            return Double.POSITIVE_INFINITY;
+
         if (!distanceMap.containsKey(element1))
             add(element1);
 
@@ -54,32 +57,11 @@ public class SLDistanceMap<T extends SLMeasurable<T>> {
      */
     public T getAdjacentElement(T element) {
 
-        if (!distanceMap.containsKey(element))
-            add(element);
+        T closestElement = getClosestElement(element);
 
-        List<T> adjacentElements = new ArrayList<>();
-        double minimum = 0;
-
-        for (T key : distanceMap.keySet()) {
-
-            if (key == element) continue;
-
-            double distance = getDistance(element, key);
-
-            if (distance < minimum) {
-
-                adjacentElements.clear();
-                adjacentElements.add(key);
-                minimum = distance;
-
-            } else if (distance == minimum) {
-                adjacentElements.add(key);
-            }
-        }
-        for (T adjacentElement : adjacentElements) {
-            if (getAdjacentElement(adjacentElement) == element) {
-                return adjacentElement;
-            }
+        if (closestElement != null) {
+            if (getClosestElement(closestElement) == element)
+                return closestElement;
         }
         return null;
     }
@@ -120,7 +102,7 @@ public class SLDistanceMap<T extends SLMeasurable<T>> {
         // insertion sort. 클러스터의 개수가 그리 많지 않을 것으로 예상.
         for (T element : getList()) {
 
-            for(int i = 0; i < closeElements.size(); i++) {
+            for (int i = 0; i < closeElements.size(); i++) {
 
                 T sortedElement = closeElements.get(i);
 
@@ -153,6 +135,13 @@ public class SLDistanceMap<T extends SLMeasurable<T>> {
             keys.removeAll(except);
 
         return keys.get(random.nextInt(keys.size()));
+    }
+
+    /**
+     * DistanceMap 내의 모든 원소를 제거한다.
+     */
+    public void clear() {
+        distanceMap.clear();
     }
 
     /**

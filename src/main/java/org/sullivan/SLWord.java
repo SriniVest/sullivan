@@ -12,26 +12,33 @@ import java.util.List;
 public class SLWord {
 
     /**
+     * 워드의 이름
+     */
+    public String name;
+
+    /**
      * 워드의 메타데이터
      */
     public SLWordInfo info;
 
     /**
-     * 워드에 속한 음성 데이터 노드
+     * 워드 내의 모든 노드가 들어있는 리스트 (최상위 distance 캐시 객체)
      */
-    public SLNodeLayer nodeLayer;
+    public SLDistanceMap<SLNode> nodes;
 
     /**
-     * 워드에 속한 클러스터 노드
+     * 클러스터 레이어
      */
-    public SLClusterLayer clusterLayer;
+    public SLClusterLayer layer;
 
 
-    public SLWord(SLWordInfo info) {
+    public SLWord(String name, SLWordInfo info) {
+
+        this.name = name;
         this.info = info;
 
-        nodeLayer = new SLNodeLayer();
-        clusterLayer = new SLClusterLayer(nodeLayer);
+        nodes = new SLDistanceMap<>();
+        layer = new SLClusterLayer();
     }
 
     /**
@@ -151,21 +158,21 @@ public class SLWord {
 
         String report = "";
 
-        report += "name: " + info.name + "\n";
+        report += "name: " + name + "\n";
         report += "version: " + info.version + "\n";
-        report += "updated: " + info.date + "\n";
+        report += "updated: " + info.registeredDate + "\n";
         report += "model layer: \n";
-        report += "    total nodes: " + nodeLayer.model.size() + "\n";
+        report += "    total wordNodes: " + nodeLayer.model.size() + "\n";
         report += "    total clusters: " + clusterLayer.model.clusters.size() + "\n";
         report += getLayerStatus(clusterLayer.model.clusters.getList());
 
         report += "success layer: \n";
-        report += "    total nodes: " + nodeLayer.success.size() + "\n";
+        report += "    total wordNodes: " + nodeLayer.success.size() + "\n";
         report += "    total clusters: " + clusterLayer.success.clusters.size() + "\n";
         report += getLayerStatus(clusterLayer.success.clusters.getList());
 
         report += "failure layer: \n";
-        report += "    total nodes: " + nodeLayer.failure.size() + "\n";
+        report += "    total wordNodes: " + nodeLayer.failure.size() + "\n";
         report += "    total clusters: " + clusterLayer.failure.clusters.size() + "\n";
         report += getLayerStatus(clusterLayer.failure.clusters.getList());
 
@@ -181,46 +188,12 @@ public class SLWord {
         for (SLCluster cluster : clusters) {
             report += "    cluster#" + (index++) + ": \n";
             report += "        size: " + cluster.getNodes().size() + "\n";
-            report += "        centroid: " + cluster.getCentroid().info.uid + "\n";
+            report += "        centroid: " + cluster.getCentroid().uid + "\n";
             report += "        dd: " + cluster.getDescriptionDensity() + "\n";
             report += "        acd: " + cluster.getAverageCentroidDistance() + "\n";
         }
 
         return report;
-    }
-
-
-    /**
-     * 워드 내부 노드의 레이어를 표현하는 클래스
-     */
-    public static class SLNodeLayer {
-
-        /**
-         * 모델 노드
-         */
-        public SLDistanceMap<SLNode> model;
-
-        /**
-         * 성공사례 노드
-         */
-        public SLDistanceMap<SLNode> success;
-
-        /**
-         * 실패사례 노드
-         */
-        public SLDistanceMap<SLNode> failure;
-
-        public SLNodeLayer() {
-            this.model = new SLDistanceMap<>();
-            this.success = new SLDistanceMap<>();
-            this.failure = new SLDistanceMap<>();
-        }
-
-        public SLNodeLayer(SLDistanceMap<SLNode> model, SLDistanceMap<SLNode> success, SLDistanceMap<SLNode> failure) {
-            this.model = model;
-            this.success = success;
-            this.failure = failure;
-        }
     }
 
     /**
@@ -243,16 +216,10 @@ public class SLWord {
          */
         public SLClusterGroup failure;
 
-        public SLClusterLayer(SLNodeLayer nodeLayer) {
-            this.model = new SLClusterGroup(nodeLayer.model);
-            this.success = new SLClusterGroup(nodeLayer.success);
-            this.failure = new SLClusterGroup(nodeLayer.failure);
-        }
-
-        public SLClusterLayer(SLClusterGroup model, SLClusterGroup success, SLClusterGroup failure) {
-            this.model = model;
-            this.success = success;
-            this.failure = failure;
+        public SLClusterLayer(SLDistanceMap<SLNode> context) {
+            this.model = new SLClusterGroup(context);
+            this.success = new SLClusterGroup(context);
+            this.failure = new SLClusterGroup(context);
         }
     }
 
@@ -261,12 +228,10 @@ public class SLWord {
      */
     public static class SLWordInfo {
 
-        public String name;
         public String version;
-        public String date;
+        public String registeredDate;
 
-        public SLWordInfo(String name) {
-            this.name = name;
+        public SLWordInfo() {
         }
     }
 }

@@ -35,7 +35,7 @@ public class SLDescriptionRequest {
     public void play(int times) {
 
         for (int i = 0; i < times; i++) {
-            targetNode = targetCluster.getContext().nodes.getRandomElement(null);
+            targetNode = targetCluster.getContext().wordNodes.getRandomElement(null);
             String source = targetNode.info.source;
             player.play(source);
         }

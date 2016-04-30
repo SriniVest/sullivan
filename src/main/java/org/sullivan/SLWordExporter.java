@@ -51,7 +51,7 @@ public class SLWordExporter {
         // word 노드
         Element wordElement = document.createElement("word");
         wordElement.setAttribute("version", SLMain.ENGINE_VERSION);
-        wordElement.setAttribute("date", new Timestamp(System.currentTimeMillis()).toString());
+        wordElement.setAttribute("registeredDate", new Timestamp(System.currentTimeMillis()).toString());
         document.appendChild(wordElement);
 
         // name 노드
@@ -95,12 +95,14 @@ public class SLWordExporter {
 
             Element dataElement = document.createElement("data");
 
+            // 노드의 소스가 .wav 면 pronounciation으로 변환 저장한다.
+
             dataElement.setAttribute("uid", node.info.uid);
             dataElement.setAttribute("source", node.info.source);
             dataElement.setAttribute("name", node.info.recorder);
             dataElement.setAttribute("sex", node.info.recorderSex ? "male" : "female");
             dataElement.setAttribute("age", node.info.recorderAge + "");
-            dataElement.setAttribute("date", node.info.recordedDate);
+            dataElement.setAttribute("registeredDate", node.info.recordedDate);
 
             // description
             for (SLDescription description : node.info.descriptions) {

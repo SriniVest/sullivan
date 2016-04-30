@@ -34,7 +34,7 @@ public class SLVolumeNormalizer implements AudioProcessor {
         return true;
     }
 
-    /**
+     /**
      * 프레임에서 Root-mean-square 볼륨을 구한다.
      *
      * @param pcmData
