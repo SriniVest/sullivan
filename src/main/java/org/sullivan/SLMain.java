@@ -83,7 +83,10 @@ public class SLMain implements SLCliListener {
                 }
                 break;
             case "load":
-                wordLoader.load(new File("./data/" + arguments.get(0).trim() + ".word"));
+                wordLoader.load(new File("./data/" + arguments.get(0).trim() + ".word"), (SLWord loadedWord) -> {
+                    cli.notify("Word \'" + loadedWord + "\' loaded.");
+                    words.put(loadedWord.name, loadedWord);
+                });
                 break;
             case "save":
                 wordName = arguments.get(0).trim();
@@ -98,7 +101,12 @@ public class SLMain implements SLCliListener {
                     cli.error("No such word \'" + wordName + "\'.");
                 else {
                     requestWord = words.get(wordName);
-                    generateNode(new File(arguments.get(1).trim()));
+                    SLNode.fromFile(new File(arguments.get(1).trim()), (SLNode node) -> {
+                        if (node != null) {
+                            SLEvaluationReport report = requestWord.evaluate(node);
+                            cli.notify(report.getResult());
+                        }
+                    });
                 }
                 break;
             case "status":
@@ -148,7 +156,9 @@ public class SLMain implements SLCliListener {
                 if (line.length() < 1) continue;
 
                 // 워드 로드
-                wordLoader.load(new File("./data/" + line + ".word"));
+                wordLoader.load(new File("./data/" + line + ".word"), (SLWord word) -> {
+                    words.put(word.name, word);
+                });
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -158,28 +168,6 @@ public class SLMain implements SLCliListener {
         return true;
     }
 
-    /**
-     * 입력된 파일 소스를 바탕으로 노드를 생성한다.
-     *
-     * @param source
-     */
-    public void generateNode(File source) {
-        SLNode.SLNodeInfo nodeInfo = new SLNode.SLNodeInfo(source.getPath());
-        nodeInfo.uid = (++SLNode.maximumUid) + "";
-
-        SLPcmData pcmData = SLPcmData.importWav(source);
-        nodeGenerator.extract(pcmData, nodeInfo);
-    }
-
-    /**
-     * 워드가 생성되었을 때 호출된다.
-     *
-     * @param word
-     */
-    public void onWordGenerated(SLWord word) {
-        words.put(word.info.name, word);
-        cli.notify("Word '" + word.info.name + "' loaded.");
-    }
 
     /**
      * 노드가 생성되었을 때 호출된다.

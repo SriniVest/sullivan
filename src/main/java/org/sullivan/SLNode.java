@@ -1,5 +1,7 @@
 package org.sullivan;
 
+import com.sun.org.apache.xalan.internal.lib.NodeInfo;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,7 +9,7 @@ import java.util.List;
 /**
  * 노드는 음성 데이터 하나를 의미한다.
  */
-public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener {
+public class SLNode implements SLMeasurable<SLNode> {
 
     public static int maximumUid = 0;
 
@@ -30,40 +32,11 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
      * 노드의 Feature 행렬
      */
     public List<float[]> featureMatrix;
-    public SLFeatureExtractor featureExtractor;
-
-    /**
-     * PCM 데이터로부터 노드 생성
-     * 이 PCM 데이터의 특성행렬로의 변환은 병렬적으로 이루어진다.
-     *
-     * @param pcmData
-     * @param info
-     */
-    public SLNode(int uid, SLNodeInfo info, SLPcmData pcmData, boolean processed) {
-
-        this.uid = uid;
-        this.info = info;
-        this.descriptions = new ArrayList<>();
-
-        featureExtractor = new SLFeatureExtractor(5000, 1);
-        featureExtractor.addEventListener(this);
-
-        if (processed)
-            featureExtractor.process(pcmData);
-        else {
-            // 전처리된 발음이 저장될 장소
-            String path = "./data/" + uid + ".spd";
-
-            featureExtractor.process(pcmData, path);
-            info.source = new File(path);
-        }
-    }
 
     /**
      * 이미 존재하는 특성행렬로 노드 생성
      *
      * @param featureMatrix
-     * @param info
      */
     public SLNode(int uid, SLNodeInfo info, List<float[]> featureMatrix) {
         this.uid = uid;
@@ -229,16 +202,6 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
         return Math.sqrt(sum);
     }
 
-    /**
-     * feature matrix 추출이 완료되었을 때
-     *
-     * @param featureMatrix
-     */
-    public void onFeatureExtracted(List<float[]> featureMatrix) {
-        this.featureMatrix = featureMatrix;
-        featureExtractor = null;
-    }
-
     // 노드의 동일성은 uid로만 판단한다.
     @Override
     public boolean equals(Object node) {
@@ -261,33 +224,99 @@ public class SLNode implements SLMeasurable<SLNode>, SLFeatureExtractorListener 
         SLPcmData streamedData;
 
         /**
-         * 데이터의 레이어
-         */
-        public String layer;
-
-        /**
          * 녹음자의 ID
          */
-        public String recorder;
+        public String recorder = "unknown";
 
         /**
          * 녹음자의 나이
          */
-        public String recorderAge;
+        public String recorderAge = "unknown";
 
         /**
          * 녹음자의 성별
          */
-        public String recorderSex;
+        public String recorderSex = "unknown";
 
         /**
          * 녹음된 날짜
          */
-        public String recordedDate;
+        public String recordedDate = "unknown";
 
 
         public SLNodeInfo() {
         }
+    }
+
+    /**
+     * 파일로부터 노드를 생성한다.
+     *
+     * @param source
+     * @param callback
+     */
+    public static void fromFile(File source, SLNodeListener callback) {
+        fromFile(++SLNode.maximumUid, new SLNodeInfo(), source, callback);
+    }
+
+    /**
+     * 파일로부터 노드를 생성한다.
+     *
+     * @param uid
+     * @param info
+     * @param source
+     * @param callback
+     */
+    public static void fromFile(final int uid, final SLNodeInfo info, File source, SLNodeListener callback) {
+
+        SLPcmData pcmData = null;
+        boolean processed = false;
+
+        switch (getFileExtension(source)) {
+            case "wav":
+                pcmData = SLPcmData.importPcm(source);
+                break;
+            case "spd": // 이미 전처리된 포맷
+                pcmData = SLPcmData.importWav(source);
+                processed = true;
+                break;
+            default:
+                System.out.print("." + getFileExtension(source) + " is Unsupported format.");
+                break;
+        }
+
+        if (pcmData == null) return;
+
+        SLFeatureExtractor featureExtractor = new SLFeatureExtractor(5000, 1);
+        featureExtractor.addEventListener((List<float[]> featureMatrix) -> {
+            SLNode node = new SLNode(uid, info, featureMatrix);
+            callback.onNodeReady(node);
+        });
+
+        if (processed)
+            featureExtractor.process(pcmData);
+        else {
+            // 전처리된 발음이 저장될 장소
+            String path = "./data/" + uid + ".spd";
+
+            featureExtractor.process(pcmData, path);
+            info.source = new File(path);
+        }
+    }
+
+    /**
+     * 파일의 확장명을 구한다.
+     *
+     * @param file
+     * @return
+     */
+    private static String getFileExtension(File file) {
+
+        int i = file.getName().lastIndexOf('.');
+
+        if (i > 0)
+            return file.getName().substring(i + 1).toLowerCase();
+        else
+            return "";
     }
 
 }

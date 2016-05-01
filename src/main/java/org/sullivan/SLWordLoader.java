@@ -12,6 +12,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -64,7 +65,7 @@ public class SLWordLoader {
         }
     }
 
-    public void load(File wordDataFile) {
+    public void load(File wordDataFile, SLWordLoaderListener callback) {
         try {
 
             targetPath = wordDataFile.getAbsoluteFile().getParentFile();
@@ -87,8 +88,9 @@ public class SLWordLoader {
                 if (wordEntry == null)
                     System.out.println("Invalid word data format.");
 
-                generateWord(wordEntry);
-
+                generateWord(wordEntry, (SLWord word) -> {
+                    callback.onWordGenerated(word);
+                });
             }
 
         } catch (SAXException | IOException e) {
@@ -248,29 +250,31 @@ public class SLWordLoader {
      * @param wordEntry
      * @return
      */
-    private SLWord generateWord(SLWordEntry wordEntry) {
+    private void generateWord(SLWordEntry wordEntry, SLWordListener callback) {
 
         // 워드 메타데이터
         SLWord.SLWordInfo wordInfo = new SLWord.SLWordInfo();
         wordInfo.version = wordEntry.version;
         wordInfo.registeredDate = wordEntry.registeredDate;
 
-        SLWord word = new SLWord(wordEntry.name, wordInfo);
+        final SLWord word = new SLWord(wordEntry.name, wordInfo);
 
-        List<SLNode> modelLayerNodes = generateNodes(wordEntry.modelLayerNodeEntries);
-        List<SLNode> successLayerNodes = generateNodes(wordEntry.successLayerNodeEntries);
-        List<SLNode> failureLayerNodes = generateNodes(wordEntry.failureLayerNodeEntries);
+        generateNodes(wordEntry.modelLayerNodeEntries, (List<SLNode> modelNodes) -> {
+            word.layer.model.nodes = modelNodes;
+            word.layer.model.analyzer.initialize();
 
-        word.layer.model.nodes = modelLayerNodes;
-        word.layer.success.nodes = successLayerNodes;
-        word.layer.failure.nodes = failureLayerNodes;
+            generateNodes(wordEntry.successLayerNodeEntries, (List<SLNode> successNodes) -> {
+                word.layer.success.nodes = successNodes;
+                word.layer.success.analyzer.initialize();
 
-        // 클러스터링 수행
-        word.layer.model.analyzer.initialize();
-        word.layer.success.analyzer.initialize();
-        word.layer.failure.analyzer.initialize();
+                generateNodes(wordEntry.failureLayerNodeEntries, (List<SLNode> failureNodes) -> {
+                    word.layer.failure.nodes = failureNodes;
+                    word.layer.failure.analyzer.initialize();
 
-        return word;
+                    callback.onWordGenerated(word);
+                });
+            });
+        });
     }
 
     /**
@@ -279,13 +283,13 @@ public class SLWordLoader {
      * @param nodeEntries
      * @return
      */
-    private List<SLNode> generateNodes(List<SLNodeEntry> nodeEntries) {
+    private void generateNodes(List<SLNodeEntry> nodeEntries, SLNodesListener callback) {
 
-        List<SLNode> nodes = new ArrayList<>();
+        final int totalNodes = nodeEntries.size();
+
+        final List<SLNode> nodes = new ArrayList<>();
 
         for (SLNodeEntry nodeEntry : nodeEntries) {
-
-            // --------- PCM 데이터 불러오기 --------- //
 
             File audioFile = new File(targetPath, nodeEntry.source);
 
@@ -295,28 +299,6 @@ public class SLWordLoader {
                 continue;
             }
 
-            SLPcmData pcmData = null;
-            boolean processed = false;
-
-            switch (getFileExtension(audioFile)) {
-                case "wav":
-                    pcmData = SLPcmData.importPcm(audioFile);
-                    break;
-                case "spd": // 이미 전처리된 포맷
-                    pcmData = SLPcmData.importWav(audioFile);
-                    processed = true;
-                    break;
-                default:
-                    // 지원하지 않는 포맷
-                    break;
-            }
-
-            if (pcmData == null) {
-                continue;
-            }
-
-            // --------- Node Info 생성하기 --------- //
-
             SLNode.SLNodeInfo nodeInfo = new SLNode.SLNodeInfo();
             nodeInfo.source = audioFile;
             nodeInfo.recorder = nodeEntry.recorder;
@@ -324,33 +306,20 @@ public class SLWordLoader {
             nodeInfo.recorderSex = nodeEntry.recorderSex;
             nodeInfo.recordedDate = nodeEntry.recordedDate;
 
-            // --------- 노드 생성하기 ---------
-            SLNode node = new SLNode(nodeEntry.uid, nodeInfo, pcmData, processed);
-
             // 최고 uid 업데이트
             SLNode.maximumUid = Math.max(SLNode.maximumUid, nodeEntry.uid);
 
-            // 리스트에 추가
-            nodes.add(node);
+            SLNode.fromFile(nodeEntry.uid, nodeInfo, audioFile, (SLNode node) -> {
+                nodes.add(node);
+                if (totalNodes == nodes.size()) {
+
+                    // null 노드를 제거한다.
+                    nodes.removeAll(Collections.singleton(null));
+
+                    callback.onNodesGenerated(nodes);
+                }
+            });
         }
-
-        return nodes;
-    }
-
-    /**
-     * 파일의 확장명을 구한다.
-     *
-     * @param file
-     * @return
-     */
-    private String getFileExtension(File file) {
-
-        int i = file.getName().lastIndexOf('.');
-
-        if (i > 0)
-            return file.getName().substring(i + 1).toLowerCase();
-        else
-            return "";
     }
 
     /**
@@ -465,6 +434,14 @@ public class SLWordLoader {
             this.uid = uid;
             this.descriptions = descriptions;
         }
+    }
+
+    private interface SLNodesListener {
+        void onNodesGenerated(List<SLNode> nodes);
+    }
+
+    private interface SLWordListener {
+        void onWordGenerated(SLWord word);
     }
 
 }
