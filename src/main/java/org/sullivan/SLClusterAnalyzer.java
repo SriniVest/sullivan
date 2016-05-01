@@ -119,6 +119,7 @@ public class SLClusterAnalyzer {
 
         // 두 클러스터를 합치는 것이 적합한지 검사
         // TODO: 클러스터 분산도도 체크한다.
+
         if (cluster.getDistance(adjacentCluster) > SLCluster.DISTANCE_THRESHOLD || false) {
 
             // 적절하지 않다면 두 클러스터 모두 고립 클러스터로 등록한다.
@@ -128,7 +129,6 @@ public class SLClusterAnalyzer {
             agglomerate();
             return;
         }
-
         // 두 클러스터를 병합한 후, 등록한다.
         SLCluster mergedCluster = cluster.merge(adjacentCluster);
 
@@ -137,7 +137,7 @@ public class SLClusterAnalyzer {
         context.clusters.add(mergedCluster);
 
         // 클러스터 사이즈가 지나치게 작아지는 것을 막는다.
-        if (context.clusters.size() <= Math.max(Math.sqrt(context.wordNodes.size() / 2), 3))
+        if (context.clusters.size() <= Math.max(Math.sqrt(context.nodes.size() / 2), 3))
             return;
 
         agglomerate();

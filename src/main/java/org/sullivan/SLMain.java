@@ -157,6 +157,7 @@ public class SLMain implements SLCliListener {
 
                 // 워드 로드
                 wordLoader.load(new File("./data/" + line + ".word"), (SLWord word) -> {
+                    cli.notify("Word \'" + word.name + "\' loaded.");
                     words.put(word.name, word);
                 });
             }

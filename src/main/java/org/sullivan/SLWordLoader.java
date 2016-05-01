@@ -178,14 +178,13 @@ public class SLWordLoader {
             NamedNodeMap attributes = childNode.getAttributes();
 
             // 값들을 읽어온다.
-            Layer layer = Layer.valueOf(layerNode.getNodeName());
             String source = getAttributeValue(attributes, "source");
             String uid = getAttributeValue(attributes, "uid");
             int iuid = 0;
             String recorder = getAttributeValue(attributes, "recorder");
             String recorderSex = getAttributeValue(attributes, "recorder-sex");
             String recorderAge = getAttributeValue(attributes, "recorder-age");
-            String recordedDate = getAttributeValue(attributes, "recorded-registeredDate");
+            String recordedDate = getAttributeValue(attributes, "recorded-date");
             List<SLDescription> descriptions = new ArrayList<>();
 
             if (source.equals("unknown"))
@@ -310,7 +309,11 @@ public class SLWordLoader {
             SLNode.maximumUid = Math.max(SLNode.maximumUid, nodeEntry.uid);
 
             SLNode.fromFile(nodeEntry.uid, nodeInfo, audioFile, (SLNode node) -> {
+
+                node.descriptions = nodeEntry.descriptions;
+
                 nodes.add(node);
+
                 if (totalNodes == nodes.size()) {
 
                     // null 노드를 제거한다.
@@ -333,7 +336,7 @@ public class SLWordLoader {
 
         Node attribute = attributes.getNamedItem(attributeName);
 
-        if (attribute != null && attribute.getNodeValue().trim().length() < 1)
+        if (attribute != null && attribute.getNodeValue().trim().length() > 0)
             return attribute.getNodeValue();
         else
             return "unknown";

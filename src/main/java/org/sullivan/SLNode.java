@@ -205,6 +205,8 @@ public class SLNode implements SLMeasurable<SLNode> {
     // 노드의 동일성은 uid로만 판단한다.
     @Override
     public boolean equals(Object node) {
+        if (node == null) return false;
+        if (!(node instanceof SLNode)) return false;
         return this.uid == ((SLNode) node).uid;
     }
 
@@ -273,7 +275,7 @@ public class SLNode implements SLMeasurable<SLNode> {
 
         switch (getFileExtension(source)) {
             case "wav":
-                pcmData = SLPcmData.importPcm(source);
+                pcmData = SLPcmData.importWav(source);
                 break;
             case "spd": // 이미 전처리된 포맷
                 pcmData = SLPcmData.importWav(source);
@@ -299,7 +301,7 @@ public class SLNode implements SLMeasurable<SLNode> {
             String path = "./data/" + uid + ".spd";
 
             featureExtractor.process(pcmData, path);
-            info.source = new File(path);
+            info.source = new File(uid + ".spd");
         }
     }
 

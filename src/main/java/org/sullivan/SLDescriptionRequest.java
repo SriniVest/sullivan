@@ -36,8 +36,7 @@ public class SLDescriptionRequest {
 
         for (int i = 0; i < times; i++) {
             targetNode = targetCluster.getContext().wordNodes.getRandomElement(null);
-            String source = targetNode.info.source;
-            player.play(source);
+            player.play(targetNode.info.source);
         }
     }
 
@@ -48,7 +47,7 @@ public class SLDescriptionRequest {
      */
     public void answer(String response) {
         if (targetNode == null) return;
-        targetNode.info.descriptions.add(new SLDescription(response, new SLDescription.SLDescriptionInfo("system")));
+        targetNode.descriptions.add(new SLDescription(response, new SLDescription.SLDescriptionInfo()));
     }
 
     /**

@@ -56,7 +56,7 @@ public class SLWordExporter {
 
         // name 노드
         Element nameElement = document.createElement("name");
-        nameElement.setNodeValue(word.name);
+        nameElement.setTextContent(word.name);
         wordElement.appendChild(nameElement);
 
         // layer 노드
@@ -95,12 +95,12 @@ public class SLWordExporter {
 
             Element dataElement = document.createElement("data");
 
-            dataElement.setAttribute("uid", node.uid);
+            dataElement.setAttribute("uid", String.valueOf(node.uid));
             dataElement.setAttribute("source", node.info.source.getPath());
-            dataElement.setAttribute("name", node.info.recorder);
-            dataElement.setAttribute("sex", node.info.recorderSex);
-            dataElement.setAttribute("age", node.info.recorderAge);
-            dataElement.setAttribute("registeredDate", node.info.recordedDate);
+            dataElement.setAttribute("recorder", node.info.recorder);
+            dataElement.setAttribute("recorder-sex", node.info.recorderSex);
+            dataElement.setAttribute("recorder-age", node.info.recorderAge);
+            dataElement.setAttribute("recorded-date", node.info.recordedDate);
 
             // description
             for (SLDescription description : node.descriptions) {
@@ -109,8 +109,8 @@ public class SLWordExporter {
                 descriptionElement.setAttribute("prominence", String.valueOf(description.info.prominence));
                 descriptionElement.setAttribute("rate", String.valueOf(description.info.rate));
                 descriptionElement.setAttribute("provider", String.valueOf(description.info.provider));
-                descriptionElement.setAttribute("registeredDate", String.valueOf(description.info.registeredDate));
-                descriptionElement.setNodeValue(description.description);
+                descriptionElement.setAttribute("registered-date", String.valueOf(description.info.registeredDate));
+                descriptionElement.setTextContent(description.description);
 
                 dataElement.appendChild(descriptionElement);
             }
@@ -119,21 +119,4 @@ public class SLWordExporter {
         }
         return layerElement;
     }
-
-    /**
-     * 파일의 확장명을 구한다.
-     *
-     * @param file
-     * @return
-     */
-    private String getFileExtension(File file) {
-
-        int i = file.getName().lastIndexOf('.');
-
-        if (i > 0)
-            return file.getName().substring(i + 1).toLowerCase();
-        else
-            return "";
-    }
-
 }

@@ -38,8 +38,6 @@ public class SLClusterGroup {
 
         this.analyzer = new SLClusterAnalyzer(this);
         this.clusters = new SLDistanceMap<>();
-
-        analyzer.initialize();
     }
 
     /**

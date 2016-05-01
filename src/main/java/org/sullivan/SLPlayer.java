@@ -15,7 +15,7 @@ import java.util.Queue;
  */
 public class SLPlayer implements AudioProcessor {
 
-    public Queue<String> playList;
+    public Queue<File> playList;
 
     public SLPlayer() {
         playList = new LinkedList<>();
@@ -26,7 +26,7 @@ public class SLPlayer implements AudioProcessor {
      *
      * @param source
      */
-    public void play(String source) {
+    public void play(File source) {
         playList.add(source);
         if (playList.size() == 1)
             process();
@@ -40,7 +40,7 @@ public class SLPlayer implements AudioProcessor {
         if (playList.size() < 1)
             return;
 
-        File audioFile = new File(playList.poll());
+        File audioFile = playList.poll();
 
         if (!audioFile.exists()) {
             process();

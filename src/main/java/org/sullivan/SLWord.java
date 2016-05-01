@@ -165,16 +165,19 @@ public class SLWord {
         report += "model layer: \n";
         report += "    total wordNodes: " + layer.model.nodes.size() + "\n";
         report += "    total clusters: " + layer.model.clusters.size() + "\n";
+        report += "    dbi: " + layer.model.getDaviesBouldinIndex() + "\n";
         report += getLayerStatus(layer.model.clusters.getList());
 
         report += "success layer: \n";
         report += "    total wordNodes: " + layer.success.nodes.size() + "\n";
         report += "    total clusters: " + layer.success.clusters.size() + "\n";
+        report += "    dbi: " + layer.success.getDaviesBouldinIndex() + "\n";
         report += getLayerStatus(layer.success.clusters.getList());
 
         report += "failure layer: \n";
         report += "    total wordNodes: " + layer.failure.nodes.size() + "\n";
         report += "    total clusters: " + layer.failure.clusters.size() + "\n";
+        report += "    dbi: " + layer.failure.getDaviesBouldinIndex() + "\n";
         report += getLayerStatus(layer.failure.clusters.getList());
 
         return report;
@@ -196,6 +199,7 @@ public class SLWord {
             report += "    cluster#" + (index++) + ": \n";
             report += "        size: " + cluster.getNodes().size() + "\n";
             report += "        centroid: " + cluster.getCentroid().uid + "\n";
+            cluster.getDescriptions();
             report += "        dd: " + cluster.getDescriptionDensity() + "\n";
             report += "        acd: " + cluster.getAverageCentroidDistance() + "\n";
         }

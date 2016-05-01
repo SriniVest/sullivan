@@ -13,7 +13,7 @@ public class SLCluster implements SLMeasurable<SLCluster> {
     /**
      * 클러스터 안에 있을 수 있는 노드 간 최대 거리
      */
-    public static int DISTANCE_THRESHOLD = 500;
+    public static float DISTANCE_THRESHOLD = 4f;
 
     /**
      * 이 클러스터가 포함하고 있는 노드의 리스트

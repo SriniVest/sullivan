@@ -128,7 +128,7 @@ public class SLEvaluationReport {
         if (classifiedAsFailure) {
             report += "\"route\": [";
             for (SLCluster step : backtrackingPath.steps) {
-                report += "{\n\"node\": " + step.getCentroid().info.uid + "\",\n\"description\": [";
+                report += "{\n\"node\": " + step.getCentroid().uid + "\",\n\"description\": [";
                 for (SLDescription description : step.getDescriptions()) {
                     report += description.description + ", ";
                 }

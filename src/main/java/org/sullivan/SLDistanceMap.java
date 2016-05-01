@@ -81,6 +81,9 @@ public class SLDistanceMap<T extends SLMeasurable<T>> {
         T closestElement = null;
 
         for (T element : getList()) {
+
+            if (element == targetElement) continue;
+
             double distance = getDistance(targetElement, element);
             if (distance < minimum) {
                 minimum = distance;
