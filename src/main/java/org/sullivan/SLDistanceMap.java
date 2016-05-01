@@ -103,26 +103,13 @@ public class SLDistanceMap<T extends SLMeasurable<T>> {
     public List<T> getCloseElements(T targetElement, float ratio) {
 
         // 크기순 정렬
-        List<T> closeElements = new LinkedList<>();
+        List<T> closeElements = getList();
 
-        // insertion sort. 클러스터의 개수가 그리 많지 않을 것으로 예상.
-        for (T element : getList()) {
+        Collections.sort(closeElements, (T t1, T t2) ->
+                (int) (getDistance(targetElement, t1) - getDistance(targetElement, t2))
+        );
 
-            for (int i = 0; i < closeElements.size(); i++) {
-
-                T sortedElement = closeElements.get(i);
-
-                if (getDistance(sortedElement, element) > getDistance(targetElement, element)) {
-                    closeElements.add(i, element);
-                    break;
-                }
-            }
-
-            if (closeElements.size() < 1)
-                closeElements.add(element);
-        }
         int elementNumber = (int) Math.max(Math.floor(closeElements.size() * ratio), Math.min(2, closeElements.size()));
-
 
         return closeElements.subList(0, elementNumber);
     }

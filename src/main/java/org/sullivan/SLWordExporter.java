@@ -96,7 +96,7 @@ public class SLWordExporter {
             Element dataElement = document.createElement("data");
 
             dataElement.setAttribute("uid", String.valueOf(node.uid));
-            dataElement.setAttribute("source", node.info.source.getPath());
+            dataElement.setAttribute("source", node.info.source.getName());
             dataElement.setAttribute("recorder", node.info.recorder);
             dataElement.setAttribute("recorder-sex", node.info.recorderSex);
             dataElement.setAttribute("recorder-age", node.info.recorderAge);

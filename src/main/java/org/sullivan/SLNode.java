@@ -3,6 +3,7 @@ package org.sullivan;
 import com.sun.org.apache.xalan.internal.lib.NodeInfo;
 
 import java.io.File;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -257,7 +258,11 @@ public class SLNode implements SLMeasurable<SLNode> {
      * @param callback
      */
     public static void fromFile(File source, SLNodeListener callback) {
-        fromFile(++SLNode.maximumUid, new SLNodeInfo(), source, callback);
+
+        SLNodeInfo info = new SLNodeInfo();
+        info.recordedDate = new Timestamp(System.currentTimeMillis()).toString();
+
+        fromFile(++SLNode.maximumUid, info, source, callback);
     }
 
     /**
@@ -299,9 +304,8 @@ public class SLNode implements SLMeasurable<SLNode> {
         else {
             // 전처리된 발음이 저장될 장소
             String path = "./data/" + uid + ".spd";
-
             featureExtractor.process(pcmData, path);
-            info.source = new File(uid + ".spd");
+            info.source = new File("./data/" + uid + ".spd");
         }
     }
 

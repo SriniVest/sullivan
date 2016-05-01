@@ -46,7 +46,9 @@ public class SLCli {
         addCommand("save", "save <word-name>", "Save word model data.");
         addCommand("evaluate", "evaluate <word-name> <*.wav|*.pronunciation>", "Evaluate pronunciation.");
         addCommand("status", "status <word-name>", "Show inner status of certain word.");
-        addCommand("resolve", "resolve", "Answer to spontaneous system learning data requests.");
+        addCommand("resolve", "resolve", "Show list of data requests");
+        addCommand("resolve-play", "resolve-play", "Play pronunciation of data request");
+        addCommand("resolve-response", "resolve-response <message>", "Answer to spontaneous system learning data requests.");
         addCommand("exit", "Exit Sullivan.");
 
         start();
@@ -68,17 +70,6 @@ public class SLCli {
      */
     public void notify(Object message) {
         printLine(message);
-    }
-
-    public String getResponse() {
-        stop();
-        String result = "";
-        while (scanner.hasNext()) {
-            result = scanner.next().trim();
-            break;
-        }
-
-        return result;
     }
 
     /**
@@ -159,6 +150,7 @@ public class SLCli {
      * 메인 루프를 정지한다.
      */
     private boolean termiate = false;
+
     private void stop() {
         termiate = true;
     }

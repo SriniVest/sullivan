@@ -57,8 +57,8 @@ public class SLPlayer implements AudioProcessor {
         SLPcmData pcmData = null;
 
         // 오디오 데이터를 PCM 형식으로 변환한다.
-        if (extension.equals("pronunciation")) {
-            pcmData = SLPcmData.importPcm(audioFile);
+        if (extension.equals("spd")) {
+            pcmData = SLPcmData.importWav(audioFile);
         } else if (extension.equals("wav")) {
             pcmData = SLPcmData.importWav(audioFile);
         }

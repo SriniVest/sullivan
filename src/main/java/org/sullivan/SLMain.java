@@ -39,6 +39,7 @@ public class SLMain implements SLCliListener {
      * Node 생성기
      */
     private SLWord requestWord;
+    private SLDescriptionRequest descriptionRequest;
 
     /**
      * 시스템 상태 변수
@@ -119,15 +120,36 @@ public class SLMain implements SLCliListener {
                 }
                 break;
             case "resolve":
-                if (SLDescriptionRequest.numberOfRequests < 1) {
-                    cli.notify("There are no requests to resolve.");
+                if (descriptionRequest != null) {
+                    cli.notify("There is already a request waiting for your response.");
                 } else {
-                    cli.notify("There are " + SLDescriptionRequest.numberOfRequests + " requests to resolve.");
-                    SLDescriptionRequest request = SLDescriptionRequest.resolve();
-                    request.play(3);
-                    String response = cli.getResponse();
-                    cli.start();
-                    request.answer(response);
+                    if (SLDescriptionRequest.numberOfRequests < 1) {
+                        cli.notify("There are no requests to resolve.");
+                    } else {
+                        cli.notify("Request has assigned. type 'resolve-play' to hear pronunciation.");
+                        cli.notify("*There are " + SLDescriptionRequest.numberOfRequests + " requests to resolve.");
+                        descriptionRequest = SLDescriptionRequest.resolve();
+                    }
+                }
+                break;
+            case "resolve-play":
+                if (descriptionRequest != null)
+                    descriptionRequest.play(3);
+                else
+                    cli.notify("There is no assigned request to play");
+                break;
+            case "resolve-response":
+                if (descriptionRequest != null) {
+
+                    String wholeWord = "";
+
+                    for (String chunk : arguments) {
+                        wholeWord += chunk;
+                    }
+                    descriptionRequest.answer(wholeWord.trim());
+                    descriptionRequest = null;
+                } else {
+                    cli.notify("There is no assigned request to response");
                 }
                 break;
             case "exit":

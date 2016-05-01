@@ -82,12 +82,12 @@ public class SLEvaluationReport {
             int no = 1;
 
             for (SLCluster step : backtrackingPath.steps) {
-                report += "    (" + (no++) + ") " + step.getCentroid().hashCode() + "\n";
+                report += "    (" + (no++) + ") " + step.getCentroid().uid + "\n";
                 for (SLDescription description : step.getDescriptions()) {
                     report += "       " + description.description + "\n";
                 }
             }
-            report += "total correction cost: " + Math.round(backtrackingPath.getCost()) + "\n";
+            report += "total correction cost: " + Math.round(backtrackingPath.getCost()) + "";
         }
 
         return report;

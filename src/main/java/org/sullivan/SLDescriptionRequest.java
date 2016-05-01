@@ -1,6 +1,7 @@
 package org.sullivan;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -34,8 +35,10 @@ public class SLDescriptionRequest {
      */
     public void play(int times) {
 
+        List<SLNode> nodes = targetCluster.getNodes();
+
         for (int i = 0; i < times; i++) {
-            targetNode = targetCluster.getContext().wordNodes.getRandomElement(null);
+            targetNode = nodes.get((int) Math.round((nodes.size() - 1) * Math.random()));
             player.play(targetNode.info.source);
         }
     }
@@ -85,7 +88,7 @@ public class SLDescriptionRequest {
         // 우선순위 분석.
         // 모델: description density * sqrt(number of requests)
 
-        double maximum = 0;
+        double maximum = Double.NEGATIVE_INFINITY;
         SLCluster resolvedCluster = null;
 
         for (SLCluster cluster : requestPriority.keySet()) {
