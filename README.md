@@ -1,2 +1,2 @@
 # Sullivan
-Machine learning based speech-language pathology system
+Machine learning based speech-language pathology system.
